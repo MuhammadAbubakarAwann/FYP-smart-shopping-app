@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'items_selector_screen.dart';
 
 class LandingScreen extends StatefulWidget {
   @override
@@ -134,7 +135,14 @@ class _LandingScreenState extends State<LandingScreen> {
             bottom: 46,
             left: (390 - 163) / 2,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ItemsSelectorScreen(),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 18),
