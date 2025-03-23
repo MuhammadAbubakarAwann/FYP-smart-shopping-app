@@ -12,6 +12,7 @@ class _LandingScreenState extends State<LandingScreen> {
   void _showInfoBubble(BuildContext context) {
     final RenderBox iconBox = context.findRenderObject() as RenderBox;
     final Offset iconPosition = iconBox.localToGlobal(Offset.zero);
+    final Size screenSize = MediaQuery.of(context).size;
 
     _infoOverlay = OverlayEntry(
       builder: (context) {
@@ -26,13 +27,13 @@ class _LandingScreenState extends State<LandingScreen> {
               ),
             ),
             Positioned(
-              top: 505,
+              top: screenSize.height * 0.65,
               left: iconPosition.dx + 30,
               child: Material(
                 color: Colors.white24,
                 child: Container(
                   padding: EdgeInsets.all(8),
-                  width: 300,
+                  width: screenSize.width * 0.75,
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
@@ -79,100 +80,121 @@ class _LandingScreenState extends State<LandingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+    final double logoHeight = screenSize.height * 0.2;
+    final double buttonWidth = screenSize.width * 0.45;
+    final double bgHeight = screenSize.height * 0.75; // Similar to original 651px height
+    
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
+          // Background image with original dimensions
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: ClipPath(
               clipper: CurveClipper(),
-              child: Container(
-                height: 651,
-                color: Color(0xFF0CA8E1),
+              child: Image.asset(
+                'assets/bg.png',
+                height: bgHeight,
+                width: screenSize.width,
+                fit: BoxFit.cover,
               ),
             ),
           ),
-          Positioned(
-            top: 86,
-            left: 57,
-            right: 57,
-            child: Image.asset(
-              'assets/logo.png',
-              width: 275,
-              height: 161,
-            ),
-          ),
-          Positioned(
-            top: 250,
-            left: 30,
-            right: 30,
-            child: Image.asset(
-              'assets/qr_code.png',
-              width: 250,
-              height: 250,
-            ),
-          ),
-          Positioned(
-            bottom: 112,
-            left: 17,
-            right: 17,
-            child: Text(
-              "Shop smarter, faster, and easier with S.mart\n"
-              "your ultimate shopping companion.",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Sarala',
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                height: 1.6,
-                color: Colors.black,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 46,
-            left: (390 - 163) / 2,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ItemsSelectorScreen(),
+          
+          // Content container
+          SafeArea(
+            child: Column(
+              children: [
+                // Logo section
+                SizedBox(height: screenSize.height * 0.08),
+                Image.asset(
+                  'assets/logo-light.png',
+                  height: logoHeight,
+                  fit: BoxFit.contain,
+                ),
+                
+                // Spacer to push content to bottom
+                Spacer(),
+                
+                // Info icon
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 16.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        _showInfoBubble(context);
+                      },
+                      child: Icon(
+                        Icons.info,
+                        size: 48,
+                        color: Color(0xFF0CA8E1),
+                      ),
+                    ),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
                 ),
-              ),
-              child: Text(
-                'Start Shopping',
-                style: TextStyle(
-                  fontFamily: 'Sarala',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.white,
+                
+                SizedBox(height: 40),
+                
+                // Text
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.08),
+                  child: Text(
+                    "Shop smarter, faster, and easier with S.mart\n"
+                    "your ultimate shopping companion.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Sarala',
+                      fontWeight: FontWeight.bold,
+                      fontSize: screenSize.width * 0.04,
+                      height: 1.6,
+                      color: Colors.black,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 205,
-            left: 3,
-            child: GestureDetector(
-              onTap: () {
-                _showInfoBubble(context);
-              },
-              child: Icon(
-                Icons.info,
-                size: 48,
-                color: Color(0xFF0CA8E1),
-              ),
+                
+                SizedBox(height: 20),
+                
+                // Button
+                SizedBox(
+                  width: buttonWidth,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ItemsSelectorScreen(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24, 
+                        vertical: screenSize.height * 0.02
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    child: Text(
+                      'Start Shopping',
+                      style: TextStyle(
+                        fontFamily: 'Sarala',
+                        fontWeight: FontWeight.bold,
+                        fontSize: screenSize.width * 0.04,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                SizedBox(height: screenSize.height * 0.06),
+              ],
             ),
           ),
         ],
@@ -185,7 +207,7 @@ class CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     Path path = Path();
-    path.lineTo(0, size.height - 195);
+    path.lineTo(0, size.height - (size.height * 0.3)); // Proportional curve
     path.quadraticBezierTo(
         size.width / 200, size.height + 40, size.width, size.height);
     path.lineTo(size.width, 0);
@@ -196,3 +218,4 @@ class CurveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
+

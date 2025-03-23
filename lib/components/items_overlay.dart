@@ -23,7 +23,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
 
   Future<void> fetchRecentItems() async {
     final response =
-        await http.get(Uri.parse('http://172.20.40.137:5000/api/items'));
+        await http.get(Uri.parse('http://192.168.100.5:5000/api/items'));
     print("Response Status: ${response.statusCode}");
     print("Response Body: ${response.body}");
 
@@ -58,7 +58,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
     // If no items match locally, try fetching from the server
     if (searchResults.isEmpty) {
       final response = await http
-          .get(Uri.parse('http://172.20.40.137:5000/api/items?q=$query'));
+          .get(Uri.parse('http://192.168.100.5:5000/api/items?q=$query'));
       if (response.statusCode == 200) {
         List<dynamic> decodedJson = jsonDecode(response.body);
         setState(() {
@@ -290,11 +290,11 @@ class _RecentItemsOverlay extends StatelessWidget {
                         const Icon(Icons.shopping_cart), // Placeholder icon
                     title: Text(items[index]['name'] ?? 'Unknown Item'),
                     trailing: IconButton(
-                      icon: const Icon(Icons.add_circle, color: Color(0xFF0CA8E1)),
+                      icon: const Icon(Icons.add_circle,
+                          color: Color(0xFF0CA8E1)),
                       onPressed: () {
                         print("Item added: ${items[index]['name']}");
-                        // Call function to add item to the shopping list
-                        addItemToShoppingList(items[index]['name']!);
+                        addItemToShoppingList(items[index]['id']!);
                       },
                     ),
                   );
@@ -307,9 +307,23 @@ class _RecentItemsOverlay extends StatelessWidget {
     );
   }
 
-  void addItemToShoppingList(String itemName) {
-    print("Adding $itemName to shopping list...");
-    // Implement shopping list addition logic here (e.g., updating state or API call)
+  Future<void> addItemToShoppingList(String itemId) async {
+    final response = await http.post(
+      Uri.parse('http://192.168.100.5:5000/api/shopping-list'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "userId": 1,
+        "items": [
+          {"productId": itemId, "quantity": 1}
+        ]
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print("Item added successfully!");
+    } else {
+      print("Failed to add item: ${response.body}");
+    }
   }
 }
 
