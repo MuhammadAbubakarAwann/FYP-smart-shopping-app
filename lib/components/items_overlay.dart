@@ -23,7 +23,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
 
   Future<void> fetchRecentItems() async {
     final response =
-        await http.get(Uri.parse('http://192.168.100.5:5000/api/items'));
+        await http.get(Uri.parse('http://172.20.65.214:5000/api/items'));
     print("Response Status: ${response.statusCode}");
     print("Response Body: ${response.body}");
 
@@ -58,7 +58,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
     // If no items match locally, try fetching from the server
     if (searchResults.isEmpty) {
       final response = await http
-          .get(Uri.parse('http://192.168.100.5:5000/api/items?q=$query'));
+          .get(Uri.parse('http://172.20.65.214:5000/api/items?q=$query'));
       if (response.statusCode == 200) {
         List<dynamic> decodedJson = jsonDecode(response.body);
         setState(() {
@@ -309,7 +309,7 @@ class _RecentItemsOverlay extends StatelessWidget {
 
   Future<void> addItemToShoppingList(String itemId) async {
     final response = await http.post(
-      Uri.parse('http://192.168.100.5:5000/api/shopping-list'),
+      Uri.parse('http://172.20.65.214:5000/api/shopping-list'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         "userId": 1,

@@ -26,7 +26,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
   Future<void> fetchShoppingList() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.5:5000/api/shopping-list/1'),
+        Uri.parse('http://172.20.65.214:5000/api/shopping-list/1'),
       );
 
       if (response.statusCode == 200) {
@@ -65,7 +65,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
 
     try {
       final response = await http.put(
-        Uri.parse('http://192.168.100.5:5000/api/shopping-list/$itemId'),
+        Uri.parse('http://172.20.65.214:5000/api/shopping-list/$itemId'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"quantity": newQuantity}),
       );
@@ -104,7 +104,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
   Future<void> removeItemFromShoppingList(String itemId) async {
     try {
       final response = await http.delete(
-        Uri.parse('http://192.168.100.5:5000/api/shopping-list/$itemId'),
+        Uri.parse('http://172.20.65.214:5000/api/shopping-list/$itemId'),
       );
 
       if (response.statusCode == 200) {
