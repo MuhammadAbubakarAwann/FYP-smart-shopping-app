@@ -16,11 +16,35 @@ class ItemsSelectorScreen extends StatefulWidget {
 class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
   List<Map<String, dynamic>> shoppingList = [];
   bool showMap = false;
+  List<String> recentItems = []; // Add this for recent items
 
   @override
   void initState() {
     super.initState();
     fetchShoppingList();
+    // Load recent items
+    _loadRecentItems();
+  }
+
+  // Add method to load recent items
+  Future<void> _loadRecentItems() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://172.20.65.214:5000/api/recent-items'),
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> items = jsonDecode(response.body);
+        setState(() {
+          recentItems = items.map((item) => item['name'].toString()).toList();
+        });
+      }
+    } catch (e) {
+      // If API fails, use sample data
+      setState(() {
+        recentItems = ['Milk', 'Bread', 'Eggs', 'Cheese', 'Apples'];
+      });
+    }
   }
 
   Future<void> fetchShoppingList() async {
@@ -152,6 +176,14 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
     );
   }
 
+  // Method to open QR generator
+  void _openQRGenerator() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const QRCodeGenerator()),
+    );
+  }
+
   // Get icon widget based on item name
   Widget _getItemIcon(String itemName) {
     // Map of item names to colors
@@ -208,7 +240,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
         color: Colors.white,
         child: Column(
           children: [
-            // Header
+            // Header with QR code icons
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -225,13 +257,41 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
               ),
               child: SafeArea(
                 bottom: false,
-                child: Text(
-                  'Shopping List',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF8BE0FF),
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Shopping List',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF8BE0FF),
+                      ),
+                    ),
+                    // Add QR code icons here
+                    Row(
+                      children: [
+                        // QR Scanner icon
+                        IconButton(
+                          icon: const Icon(
+                            Icons.qr_code_scanner,
+                            color: Color(0xFF0CA8E1),
+                          ),
+                          onPressed: _openQRScanner,
+                          tooltip: 'Scan Product QR Code',
+                        ),
+                        // QR Generator icon
+                        IconButton(
+                          icon: const Icon(
+                            Icons.qr_code,
+                            color: Color(0xFF0CA8E1),
+                          ),
+                          onPressed: _openQRGenerator,
+                          tooltip: 'Create QR Codes',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
