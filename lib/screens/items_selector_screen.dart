@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../components/items_overlay.dart';
 import 'qr_code_scanner.dart';
 import 'qr_generator.dart';
 import 'ar_navigation_screen.dart';
+import '../services/shopping_list_service.dart';
 
 class ItemsSelectorScreen extends StatefulWidget {
   const ItemsSelectorScreen({super.key});
@@ -16,132 +15,28 @@ class ItemsSelectorScreen extends StatefulWidget {
 class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
   List<Map<String, dynamic>> shoppingList = [];
   bool showMap = false;
-  List<String> recentItems = []; // Add this for recent items
 
   @override
   void initState() {
     super.initState();
     fetchShoppingList();
-    // Load recent items
-    _loadRecentItems();
-  }
-
-  // Add method to load recent items
-  Future<void> _loadRecentItems() async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://172.20.65.214:5000/api/recent-items'),
-      );
-
-      if (response.statusCode == 200) {
-        List<dynamic> items = jsonDecode(response.body);
-        setState(() {
-          recentItems = items.map((item) => item['name'].toString()).toList();
-        });
-      }
-    } catch (e) {
-      // If API fails, use sample data
-      setState(() {
-        recentItems = ['Milk', 'Bread', 'Eggs', 'Cheese', 'Apples'];
-      });
-    }
   }
 
   Future<void> fetchShoppingList() async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://172.20.65.214:5000/api/shopping-list/1'),
-      );
-
-      if (response.statusCode == 200) {
-        List<dynamic> decodedJson = jsonDecode(response.body);
-        setState(() {
-          shoppingList = decodedJson
-              .expand((list) => list["items"])
-              .map((item) => {
-                    "id": item["id"].toString(),
-                    "name": item["product"]["name"].toString(),
-                    "quantity": item["quantity"] ?? 1,
-                  })
-              .toList();
-        });
-      }
-    } catch (e) {
-      // If API fails, use sample data for UI demonstration
-      setState(() {
-        shoppingList = [
-          {"id": "1", "name": "Semi skimmed Milk", "quantity": 1},
-          {"id": "2", "name": "Meat", "quantity": 1},
-          {"id": "3", "name": "Chicken", "quantity": 1},
-          {"id": "4", "name": "Eggs", "quantity": 1},
-          {"id": "5", "name": "Cheese", "quantity": 1},
-          {"id": "6", "name": "Apple", "quantity": 1},
-          {"id": "7", "name": "Bread", "quantity": 1},
-          {"id": "8", "name": "Salad", "quantity": 1},
-          {"id": "9", "name": "Sugar", "quantity": 1},
-        ];
-      });
-    }
+    final list = await ShoppingListService.getShoppingList();
+    setState(() {
+      shoppingList = list;
+    });
   }
 
   Future<void> updateQuantity(String itemId, int newQuantity) async {
-    if (newQuantity < 1) return; // Prevent negative quantity
-
-    try {
-      final response = await http.put(
-        Uri.parse('http://172.20.65.214:5000/api/shopping-list/$itemId'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({"quantity": newQuantity}),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          shoppingList = shoppingList.map((item) {
-            if (item["id"] == itemId) {
-              return {
-                "id": item["id"],
-                "name": item["name"],
-                "quantity": newQuantity
-              };
-            }
-            return item;
-          }).toList();
-        });
-      }
-    } catch (e) {
-      // Handle locally if API fails
-      setState(() {
-        shoppingList = shoppingList.map((item) {
-          if (item["id"] == itemId) {
-            return {
-              "id": item["id"],
-              "name": item["name"],
-              "quantity": newQuantity
-            };
-          }
-          return item;
-        }).toList();
-      });
-    }
+    await ShoppingListService.updateQuantity(itemId, newQuantity);
+    fetchShoppingList(); // Refresh the list
   }
 
   Future<void> removeItemFromShoppingList(String itemId) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('http://172.20.65.214:5000/api/shopping-list/$itemId'),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          shoppingList.removeWhere((item) => item["id"] == itemId);
-        });
-      }
-    } catch (e) {
-      // Handle locally if API fails
-      setState(() {
-        shoppingList.removeWhere((item) => item["id"] == itemId);
-      });
-    }
+    await ShoppingListService.removeItem(itemId);
+    fetchShoppingList(); // Refresh the list
   }
 
   void _showItemsOverlay(BuildContext context) async {
@@ -151,7 +46,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
       builder: (context) => const ItemsOverlay(),
       isScrollControlled: true,
     );
-    fetchShoppingList();
+    fetchShoppingList(); // Refresh the list after overlay is closed
   }
 
   // Method to open QR scanner popup
@@ -160,17 +55,26 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
       context: context,
       builder: (context) => QRScannerPopup(
         onProductScanned: (product) {
+          // Add scanned product to local shopping list
+          ShoppingListService.addItem({
+            "id": product.id.toString(),
+            "name": product.name,
+            "quantity": 1
+          });
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Product scanned: ${product.name}'),
               backgroundColor: Colors.green,
             ),
           );
-
+          
           print('Product details:');
           print('ID: ${product.id}');
           print('Name: ${product.name}');
           print('Price: \$${product.price.toStringAsFixed(2)}');
+          
+          fetchShoppingList(); // Refresh the list
         },
       ),
     );
@@ -227,7 +131,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
       ),
       child: Icon(
         icon,
-        color: Color(0xFF0CA8E1),
+        color: const Color(0xFF0CA8E1),
         size: 24,
       ),
     );
@@ -265,7 +169,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF8BE0FF),
+                        color: const Color(0xFF8BE0FF),
                       ),
                     ),
                     // Add QR code icons here
@@ -539,3 +443,4 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
     );
   }
 }
+

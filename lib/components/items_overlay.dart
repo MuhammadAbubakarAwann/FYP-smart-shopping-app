@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../services/config_service.dart';
+import '../services/shopping_list_service.dart';
 
 class ItemsOverlay extends StatefulWidget {
   const ItemsOverlay({super.key});
@@ -22,20 +24,39 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
   }
 
   Future<void> fetchRecentItems() async {
-    final response =
-        await http.get(Uri.parse('http://172.20.65.214:5000/api/items'));
-    print("Response Status: ${response.statusCode}");
-    print("Response Body: ${response.body}");
+    try {
+      final response = await http.get(Uri.parse('${configService.apiBaseUrl}/api/items'));
+      print("Response Status: ${response.statusCode}");
+      print("Response Body: ${response.body}");
 
-    if (response.statusCode == 200) {
-      List<dynamic> decodedJson = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        List<dynamic> decodedJson = jsonDecode(response.body);
+        setState(() {
+          recentItems = decodedJson.map((item) {
+            return {
+              "id": item["id"].toString(),
+              "name": item["name"].toString(),
+            };
+          }).toList();
+          searchResults = recentItems;
+        });
+      }
+    } catch (e) {
+      print("Error fetching recent items: $e");
+      // Fallback to sample data if API fails
       setState(() {
-        recentItems = decodedJson.map((item) {
-          return {
-            "id": item["id"].toString(),
-            "name": item["name"].toString(),
-          };
-        }).toList();
+        recentItems = [
+          {"id": "1", "name": "Semi skimmed Milk"},
+          {"id": "2", "name": "Meat"},
+          {"id": "3", "name": "Chicken"},
+          {"id": "4", "name": "Eggs"},
+          {"id": "5", "name": "Cheese"},
+          {"id": "6", "name": "Apple"},
+          {"id": "7", "name": "Bread"},
+          {"id": "8", "name": "Salad"},
+          {"id": "9", "name": "Sugar"},
+        ];
+        searchResults = recentItems;
       });
     }
   }
@@ -48,17 +69,10 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
       return;
     }
 
-    // Filter items locally based on the search query
-    setState(() {
-      searchResults = recentItems.where((item) {
-        return item["name"]!.toLowerCase().contains(query.toLowerCase());
-      }).toList();
-    });
-
-    // If no items match locally, try fetching from the server
-    if (searchResults.isEmpty) {
-      final response = await http
-          .get(Uri.parse('http://172.20.65.214:5000/api/items?q=$query'));
+    try {
+      // Search from API
+      final response = await http.get(Uri.parse('${configService.apiBaseUrl}/api/items?q=$query'));
+      
       if (response.statusCode == 200) {
         List<dynamic> decodedJson = jsonDecode(response.body);
         setState(() {
@@ -70,6 +84,14 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
           }).toList();
         });
       }
+    } catch (e) {
+      print("Error searching items: $e");
+      // Fallback to local filtering if API fails
+      setState(() {
+        searchResults = recentItems.where((item) {
+          return item["name"]!.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+      });
     }
   }
 
@@ -154,15 +176,39 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
                   child: ListView(
                     children: [
                       _buildCategorySection('Top up', [
-                        _ItemCard(icon: '🍎', label: 'Fruits'),
-                        _ItemCard(icon: '🏠', label: 'Sugar'),
-                        _ItemCard(icon: '🥗', label: 'Fruits'),
+                        _ItemCard(
+                          icon: '🍎', 
+                          label: 'Fruits',
+                          onTap: () => _addItemToShoppingList("6", "Apple"),
+                        ),
+                        _ItemCard(
+                          icon: '🏠', 
+                          label: 'Sugar',
+                          onTap: () => _addItemToShoppingList("9", "Sugar"),
+                        ),
+                        _ItemCard(
+                          icon: '🥗', 
+                          label: 'Salad',
+                          onTap: () => _addItemToShoppingList("8", "Salad"),
+                        ),
                       ]),
                       const SizedBox(height: 20),
                       _buildCategorySection('Bread and dairy', [
-                        _ItemCard(icon: '🥛', label: 'Milk'),
-                        _ItemCard(icon: '🍞', label: 'Bakery'),
-                        _ItemCard(icon: '🧀', label: 'Cheese'),
+                        _ItemCard(
+                          icon: '🥛', 
+                          label: 'Milk',
+                          onTap: () => _addItemToShoppingList("1", "Semi skimmed Milk"),
+                        ),
+                        _ItemCard(
+                          icon: '🍞', 
+                          label: 'Bread',
+                          onTap: () => _addItemToShoppingList("7", "Bread"),
+                        ),
+                        _ItemCard(
+                          icon: '🧀', 
+                          label: 'Cheese',
+                          onTap: () => _addItemToShoppingList("5", "Cheese"),
+                        ),
                       ]),
                       const SizedBox(height: 45),
                       Padding(
@@ -222,10 +268,33 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
             child: _RecentItemsOverlay(
               items: searchResults,
               onClose: hideRecentItems,
+              onItemAdded: () {
+                // Refresh the parent screen when an item is added
+                Navigator.pop(context);
+              },
             ),
           ),
       ],
     );
+  }
+
+  Future<void> _addItemToShoppingList(String itemId, String itemName) async {
+    // Add to local storage shopping list
+    await ShoppingListService.addItem({
+      "id": itemId,
+      "name": itemName,
+      "quantity": 1
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added $itemName to shopping list'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    
+    // Close the overlay
+    Navigator.pop(context);
   }
 
   Widget _buildCategorySection(String title, List<Widget> items) {
@@ -258,8 +327,13 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
 class _RecentItemsOverlay extends StatelessWidget {
   final List<Map<String, String>> items;
   final VoidCallback onClose;
+  final VoidCallback onItemAdded;
 
-  const _RecentItemsOverlay({required this.items, required this.onClose});
+  const _RecentItemsOverlay({
+    required this.items, 
+    required this.onClose,
+    required this.onItemAdded,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -282,24 +356,31 @@ class _RecentItemsOverlay extends StatelessWidget {
               ],
             ),
             Expanded(
-              child: ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    leading:
-                        const Icon(Icons.shopping_cart), // Placeholder icon
-                    title: Text(items[index]['name'] ?? 'Unknown Item'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add_circle,
-                          color: Color(0xFF0CA8E1)),
-                      onPressed: () {
-                        print("Item added: ${items[index]['name']}");
-                        addItemToShoppingList(items[index]['id']!);
+              child: items.isEmpty
+                  ? const Center(
+                      child: Text("No items found"),
+                    )
+                  : ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          leading:
+                              const Icon(Icons.shopping_cart), // Placeholder icon
+                          title: Text(items[index]['name'] ?? 'Unknown Item'),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.add_circle,
+                                color: Color(0xFF0CA8E1)),
+                            onPressed: () {
+                              addItemToShoppingList(
+                                items[index]['id']!,
+                                items[index]['name']!,
+                              );
+                              onItemAdded();
+                            },
+                          ),
+                        );
                       },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -307,72 +388,71 @@ class _RecentItemsOverlay extends StatelessWidget {
     );
   }
 
-  Future<void> addItemToShoppingList(String itemId) async {
-    final response = await http.post(
-      Uri.parse('http://172.20.65.214:5000/api/shopping-list'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        "userId": 1,
-        "items": [
-          {"productId": itemId, "quantity": 1}
-        ]
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      print("Item added successfully!");
-    } else {
-      print("Failed to add item: ${response.body}");
-    }
+  Future<void> addItemToShoppingList(String itemId, String itemName) async {
+    // Add to local storage shopping list
+    await ShoppingListService.addItem({
+      "id": itemId,
+      "name": itemName,
+      "quantity": 1
+    });
+    
+    print("Item added locally: $itemName");
   }
 }
 
 class _ItemCard extends StatelessWidget {
   final String icon;
   final String label;
+  final VoidCallback onTap;
+  
   const _ItemCard({
     required this.icon,
     required this.label,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 101,
-      height: 136,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: Color.fromARGB(159, 139, 224, 255),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 71,
-            height: 71,
-            decoration: const BoxDecoration(
-              color: Color.fromARGB(189, 255, 255, 255),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                icon,
-                style: const TextStyle(fontSize: 24),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 101,
+        height: 136,
+        margin: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: Color.fromARGB(159, 139, 224, 255),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 71,
+              height: 71,
+              decoration: const BoxDecoration(
+                color: Color.fromARGB(189, 255, 255, 255),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  icon,
+                  style: const TextStyle(fontSize: 24),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Sarala',
-              fontSize: 20,
-              color: Color(0xFF0CA8E1),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'Sarala',
+                fontSize: 20,
+                color: Color(0xFF0CA8E1),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
