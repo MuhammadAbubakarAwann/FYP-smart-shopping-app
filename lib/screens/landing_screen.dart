@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens/login_screen.dart';
 import 'items_selector_screen.dart';
 
 class LandingScreen extends StatefulWidget {
@@ -167,7 +168,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ItemsSelectorScreen(),
+                          builder: (context) => LoginPage(),
                         ),
                       );
                     },
