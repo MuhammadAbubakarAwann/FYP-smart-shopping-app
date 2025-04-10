@@ -1,0 +1,2 @@
+E:/HITEC/New folder/FYP-smart-shopping-app-frontend/android/app/.cxx/Debug/1x5k1qr1/x86_64/CMakeFiles/edit_cache.dir
+E:/HITEC/New folder/FYP-smart-shopping-app-frontend/android/app/.cxx/Debug/1x5k1qr1/x86_64/CMakeFiles/rebuild_cache.dir

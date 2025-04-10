@@ -74,7 +74,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
           print('Name: ${product.name}');
           print('Price: \$${product.price.toStringAsFixed(2)}');
           
-          fetchShoppingList(); // Refresh the list
+          fetchShoppingList(); 
         },
       ),
     );

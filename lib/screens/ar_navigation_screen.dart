@@ -1,24 +1,34 @@
-import 'package:flutter/material.dart';
-import 'qr_code_scanner.dart'; // Import QR scanner
+import "package:flutter/material.dart";
+import "qr_code_scanner.dart"; // Import QR scanner
+import "cart_screen.dart";
 
 class ARNavigationScreen extends StatefulWidget {
-  const ARNavigationScreen({Key? key}) : super(key: key);
+  
+  const
+  ARNavigationScreen({Key? key}) : super
+  (key: key);
 
   @override
-  State<ARNavigationScreen> createState() => _ARNavigationScreenState();
+  State<ARNavigationScreen>
+  createState()
+  =>
+  _ARNavigationScreenState();
 }
 
 class _ARNavigationScreenState extends State<ARNavigationScreen> {
-  bool isBlueBackground = true;
+  bool
+  isBlueBackground = true;
 
-  void toggleBackground() {
+  void
+  toggleBackground() {
     setState(() {
       isBlueBackground = !isBlueBackground;
     });
   }
 
   // Method to open QR scanner popup
-  void _openQRScanner() {
+  void
+  _openQRScanner() {
     showDialog(
       context: context,
       builder: (context) => QRScannerPopup(
@@ -31,19 +41,22 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
             ),
           );
 
-          // Log the product details
-          print('Product details:');
-          print('ID: ${product.id}');
-          print('Name: ${product.name}');
-          print('Price: \$${product.price.toStringAsFixed(2)}');
-        },
+    // Log the product details
+    print("Product details:");
+    print("ID: ${product.id}");
+    print("Name: ${product.name}");
+    print("Price: ${product.price.toStringAsFixed(2)}");
+  }
+  ,
       ),
     );
-  }
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+@override
+Widget
+build(BuildContext context)
+{
+  return Scaffold(
       body: Container(
         color: isBlueBackground ? const Color(0xFF8BE0FF) : Colors.white,
         child: SafeArea(
@@ -134,21 +147,29 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
 
                       const SizedBox(width: 10),
 
-                      // Pay button
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'pay',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                      // Cart button
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => CartScreen()),
+                          );
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'cart',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -331,7 +352,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
                       ],
                     ),
                   ),
-                ),
+  ),
               ),
 
               // Bottom navigation
@@ -343,8 +364,10 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
                   children: [
                     // Item count
                     Row(
-                      children: const [
-                        Icon(Icons.list, color: Colors.grey, size: 20),
+                      children:
+  const [
+                        Icon(Icons.list, color: Colors.grey, size: 20
+  ),
                         SizedBox(width: 8),
                         Text(
                           '1 of 10 item left',
@@ -353,7 +376,8 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
                       ],
                     ),
 
-                    const Spacer(),
+  const Spacer
+  (),
 
                     // Add More button (using the provided styling)
                     TextButton(
@@ -392,7 +416,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
                         ],
                       ),
                     ),
-                  ],
+  ],
                 ),
               ),
             ],
@@ -400,5 +424,6 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
         ),
       ),
     );
-  }
 }
+}
+

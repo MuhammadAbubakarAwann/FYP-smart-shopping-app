@@ -26,8 +26,6 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
   Future<void> fetchRecentItems() async {
     try {
       final response = await http.get(Uri.parse('${configService.apiBaseUrl}/api/items'));
-      print("Response Status: ${response.statusCode}");
-      print("Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
         List<dynamic> decodedJson = jsonDecode(response.body);
