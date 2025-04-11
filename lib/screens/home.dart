@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
-import 'items_selector_screen.dart';
+import 'payment_details_screen.dart';
 
 class LandingScreen extends StatefulWidget {
+  const LandingScreen({Key? key}) : super(key: key);
+
   @override
   _LandingScreenState createState() => _LandingScreenState();
 }
 
 class _LandingScreenState extends State<LandingScreen> {
   OverlayEntry? _infoOverlay;
+  
+  // Mock user ID for demo purposes
+  final int _userId = 1;
 
   void _showInfoBubble(BuildContext context) {
     final RenderBox iconBox = context.findRenderObject() as RenderBox;
@@ -32,7 +37,7 @@ class _LandingScreenState extends State<LandingScreen> {
               child: Material(
                 color: Colors.white24,
                 child: Container(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   width: screenSize.width * 0.75,
                   decoration: BoxDecoration(
                     color: Colors.transparent,
@@ -42,7 +47,7 @@ class _LandingScreenState extends State<LandingScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: const [
                       Text(
                         "Information",
                         style: TextStyle(
@@ -118,18 +123,18 @@ class _LandingScreenState extends State<LandingScreen> {
                 ),
                 
                 // Spacer to push content to bottom
-                Spacer(),
+                const Spacer(),
                 
                 // Info icon
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Padding(
-                    padding: EdgeInsets.only(left: 16.0),
+                    padding: const EdgeInsets.only(left: 16.0),
                     child: GestureDetector(
                       onTap: () {
                         _showInfoBubble(context);
                       },
-                      child: Icon(
+                      child: const Icon(
                         Icons.info,
                         size: 48,
                         color: Color(0xFF0CA8E1),
@@ -138,7 +143,7 @@ class _LandingScreenState extends State<LandingScreen> {
                   ),
                 ),
                 
-                SizedBox(height: 40),
+                const SizedBox(height: 40),
                 
                 // Text
                 Padding(
@@ -157,9 +162,9 @@ class _LandingScreenState extends State<LandingScreen> {
                   ),
                 ),
                 
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 
-                // Button
+                // Button - Updated to navigate to PaymentDetailsScreen with userId
                 SizedBox(
                   width: buttonWidth,
                   child: ElevatedButton(
@@ -167,7 +172,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ItemsSelectorScreen(),
+                          builder: (context) => PaymentDetailsScreen(userId: _userId),
                         ),
                       );
                     },
@@ -179,6 +184,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
+                
                       ),
                     ),
                     child: Text(
@@ -218,4 +224,3 @@ class CurveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
-

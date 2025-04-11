@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/payment_service.dart';
 
 // Reuse the Product model from qr_code_scanner.dart
 class Product {
@@ -52,7 +53,12 @@ class Product {
 }
 
 class CartScreen extends StatefulWidget {
-  const CartScreen({Key? key}) : super(key: key);
+  final int userId;
+  
+  const CartScreen({
+    Key? key, 
+    this.userId = 1, // Default user ID for testing
+  }) : super(key: key);
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -62,7 +68,7 @@ class _CartScreenState extends State<CartScreen> {
   List<Product> cartItems = [];
   bool isLoading = true;
   String? errorMessage;
-  final int userId = 1; // Replace with actual user ID from authentication
+  bool isProcessingPayment = false;
   
   @override
   void initState() {
@@ -114,9 +120,9 @@ class _CartScreenState extends State<CartScreen> {
   
   Future<void> _fetchCartFromServer() async {
     try {
-      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.0.126:5000';
+      final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.get(
-        Uri.parse('$apiUrl/api/cart/$userId'),
+        Uri.parse('$apiUrl/api/cart/${widget.userId}'),
       );
       
       if (response.statusCode == 200) {
@@ -184,9 +190,9 @@ class _CartScreenState extends State<CartScreen> {
     });
     
     try {
-      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.0.126:5000';
+      final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.put(
-        Uri.parse('$apiUrl/api/cart/$userId/item/${product.id}'),
+        Uri.parse('$apiUrl/api/cart/${widget.userId}/item/${product.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'quantity': newQuantity,
@@ -227,9 +233,9 @@ class _CartScreenState extends State<CartScreen> {
     _saveCartToLocalStorage();
     
     try {
-      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.0.126:5000';
+      final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.delete(
-        Uri.parse('$apiUrl/api/cart/$userId/item/${product.id}'),
+        Uri.parse('$apiUrl/api/cart/${widget.userId}/item/${product.id}'),
       );
       
       if (response.statusCode == 200) {
@@ -254,7 +260,129 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
   
-  Future<void> _checkout() async {
+  // Show payment confirmation dialog
+  Future<bool> _showPaymentConfirmationDialog() async {
+    return await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(false),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'You want to Pay Now?',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'are you sure?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.blue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      side: const BorderSide(color: Colors.blue),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  ),
+                  child: const Text(
+                    'Yes',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // Show payment success dialog
+  Future<void> _showPaymentSuccessDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Payment Successful',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // Process payment and checkout
+  Future<void> _processPayment() async {
     if (cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -265,37 +393,57 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
     
+    // Show confirmation dialog
+    final bool confirmed = await _showPaymentConfirmationDialog();
+    if (!confirmed) return;
+    
     setState(() {
-      isLoading = true;
+      isProcessingPayment = true;
     });
     
     try {
-      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.0.126:5000';
+      // Get the default payment method for the user
+      final paymentMethods = await PaymentService.getPaymentMethods(widget.userId);
+      
+      if (paymentMethods.isEmpty) {
+        // If no payment methods, we'll still proceed with checkout for demo purposes
+        // In a real app, you might redirect to add a payment method
+        print('No payment methods found, proceeding with checkout anyway');
+      }
+      
+      // Calculate total amount
+      final double totalAmount = _calculateTotal;
+      
+      // Process the payment (in a real app, this would charge the card)
+      // For this demo, we'll just simulate a successful payment
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Process the checkout on the server
+      final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.post(
-        Uri.parse('$apiUrl/api/cart/$userId/checkout'),
+        Uri.parse('$apiUrl/api/cart/${widget.userId}/checkout'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'paymentMethodId': paymentMethods.isNotEmpty ? paymentMethods.first.id : null,
+        }),
       );
       
+      setState(() {
+        isProcessingPayment = false;
+      });
+      
       if (response.statusCode == 200) {
+        // Show success dialog
+        await _showPaymentSuccessDialog();
+        
         // Clear local cart
         setState(() {
           cartItems = [];
-          isLoading = false;
         });
         
         // Clear local storage
         _saveCartToLocalStorage();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Checkout successful!'),
-            backgroundColor: Colors.green,
-          ),
-        );
       } else {
-        setState(() {
-          isLoading = false;
-        });
-        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Checkout failed. Please try again.'),
@@ -304,14 +452,14 @@ class _CartScreenState extends State<CartScreen> {
         );
       }
     } catch (e) {
-      print('Error during checkout: $e');
+      print('Error during payment: $e');
       setState(() {
-        isLoading = false;
+        isProcessingPayment = false;
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Network error during checkout. Please try again when online.'),
+          content: Text('Network error during payment. Please try again when online.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -772,11 +920,21 @@ class _CartScreenState extends State<CartScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: _checkout,
-                            icon: const Icon(Icons.shopping_cart_checkout),
-                            label: const Text(
-                              'Checkout',
-                              style: TextStyle(
+                            onPressed: isProcessingPayment ? null : _processPayment,
+                            icon: isProcessingPayment 
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.shopping_cart_checkout),
+                            label: Text(
+                              isProcessingPayment ? 'Processing...' : 'Checkout',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
