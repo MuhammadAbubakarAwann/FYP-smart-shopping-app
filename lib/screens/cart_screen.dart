@@ -69,11 +69,32 @@ class _CartScreenState extends State<CartScreen> {
   bool isLoading = true;
   String? errorMessage;
   bool isProcessingPayment = false;
+  List<PaymentMethod> paymentMethods = [];
+  PaymentMethod? selectedPaymentMethod;
   
   @override
   void initState() {
     super.initState();
     _loadCartItems();
+    _loadPaymentMethods();
+  }
+  
+  Future<void> _loadPaymentMethods() async {
+    try {
+      final methods = await PaymentService.getPaymentMethods(widget.userId);
+      setState(() {
+        paymentMethods = methods;
+        if (methods.isNotEmpty) {
+          // Find default payment method or use the first one
+          selectedPaymentMethod = methods.firstWhere(
+            (method) => method.isDefault, 
+            orElse: () => methods.first
+          );
+        }
+      });
+    } catch (e) {
+      print('Error loading payment methods: $e');
+    }
   }
   
   Future<void> _loadCartItems() async {
@@ -260,6 +281,75 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
   
+  // Show payment method selection dialog
+  Future<PaymentMethod?> _showPaymentMethodDialog() async {
+    if (paymentMethods.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No payment methods available. Using default payment.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return null;
+    }
+    
+    return await showDialog<PaymentMethod>(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Select Payment Method',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ...paymentMethods.map((method) {
+                  return ListTile(
+                    leading: Icon(_getCardIcon(method.brand)),
+                    title: Text('${method.brand.toUpperCase()} •••• ${method.last4}'),
+                    subtitle: Text('Expires ${method.expiryMonth}/${method.expiryYear % 100}'),
+                    trailing: method.isDefault ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                    onTap: () {
+                      Navigator.of(context).pop(method);
+                    },
+                  );
+                }).toList(),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  IconData _getCardIcon(String brand) {
+    switch (brand.toLowerCase()) {
+      case 'visa':
+        return Icons.credit_card;
+      case 'mastercard':
+        return Icons.credit_card;
+      case 'amex':
+        return Icons.credit_card;
+      default:
+        return Icons.credit_card;
+    }
+  }
+  
   // Show payment confirmation dialog
   Future<bool> _showPaymentConfirmationDialog() async {
     return await showDialog(
@@ -293,29 +383,59 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'are you sure?',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
+                if (selectedPaymentMethod != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_getCardIcon(selectedPaymentMethod!.brand)),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${selectedPaymentMethod!.brand.toUpperCase()} •••• ${selectedPaymentMethod!.last4}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 10),
+                Text(
+                  'Total: \$${_calculateTotal.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0CA8E1),
                   ),
                 ),
                 const SizedBox(height: 30),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      side: const BorderSide(color: Colors.blue),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                      ),
+                      child: const Text('Cancel'),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
-                  ),
-                  child: const Text(
-                    'Yes',
-                    style: TextStyle(fontSize: 16),
-                  ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0CA8E1),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                      ),
+                      child: const Text('Pay Now'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
               ],
@@ -327,7 +447,7 @@ class _CartScreenState extends State<CartScreen> {
   }
   
   // Show payment success dialog
-  Future<void> _showPaymentSuccessDialog() async {
+  Future<void> _showPaymentSuccessDialog(String transactionId) async {
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -373,6 +493,110 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                Text(
+                  'Transaction ID:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  transactionId,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0CA8E1),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  ),
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // Show payment error dialog
+  Future<void> _showPaymentErrorDialog(String errorMessage) async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Payment Failed',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.red[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.error_outline,
+                    color: Colors.red[800],
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  errorMessage,
+                  style: const TextStyle(
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0CA8E1),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  ),
+                  child: const Text('Try Again'),
+                ),
               ],
             ),
           ),
@@ -393,6 +617,16 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
     
+    // Let user select payment method if they have multiple
+    if (paymentMethods.length > 1) {
+      final selectedMethod = await _showPaymentMethodDialog();
+      if (selectedMethod != null) {
+        setState(() {
+          selectedPaymentMethod = selectedMethod;
+        });
+      }
+    }
+    
     // Show confirmation dialog
     final bool confirmed = await _showPaymentConfirmationDialog();
     if (!confirmed) return;
@@ -402,29 +636,16 @@ class _CartScreenState extends State<CartScreen> {
     });
     
     try {
-      // Get the default payment method for the user
-      final paymentMethods = await PaymentService.getPaymentMethods(widget.userId);
-      
-      if (paymentMethods.isEmpty) {
-        // If no payment methods, we'll still proceed with checkout for demo purposes
-        // In a real app, you might redirect to add a payment method
-        print('No payment methods found, proceeding with checkout anyway');
-      }
-      
       // Calculate total amount
       final double totalAmount = _calculateTotal;
-      
-      // Process the payment (in a real app, this would charge the card)
-      // For this demo, we'll just simulate a successful payment
-      await Future.delayed(const Duration(seconds: 2));
       
       // Process the checkout on the server
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.post(
-        Uri.parse('$apiUrl/api/cart/${widget.userId}/checkout'),
+        Uri.parse('$apiUrl/api/shopping-list/${widget.userId}/checkout'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'paymentMethodId': paymentMethods.isNotEmpty ? paymentMethods.first.id : null,
+          'paymentMethodId': selectedPaymentMethod?.id,
         }),
       );
       
@@ -432,9 +653,11 @@ class _CartScreenState extends State<CartScreen> {
         isProcessingPayment = false;
       });
       
-      if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 200 && responseData['success'] != false) {
         // Show success dialog
-        await _showPaymentSuccessDialog();
+        await _showPaymentSuccessDialog(responseData['transactionId'] ?? 'Unknown');
         
         // Clear local cart
         setState(() {
@@ -444,11 +667,9 @@ class _CartScreenState extends State<CartScreen> {
         // Clear local storage
         _saveCartToLocalStorage();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Checkout failed. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
+        // Show error dialog
+        await _showPaymentErrorDialog(
+          responseData['error'] ?? 'Payment failed. Please try again.'
         );
       }
     } catch (e) {
@@ -457,12 +678,7 @@ class _CartScreenState extends State<CartScreen> {
         isProcessingPayment = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Network error during payment. Please try again when online.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      await _showPaymentErrorDialog('Network error. Please check your connection and try again.');
     }
   }
   
@@ -886,6 +1102,47 @@ class _CartScreenState extends State<CartScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Payment method display
+                        if (selectedPaymentMethod != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(_getCardIcon(selectedPaymentMethod!.brand)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${selectedPaymentMethod!.brand.toUpperCase()} •••• ${selectedPaymentMethod!.last4}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                TextButton(
+                                  onPressed: () async {
+                                    final method = await _showPaymentMethodDialog();
+                                    if (method != null) {
+                                      setState(() {
+                                        selectedPaymentMethod = method;
+                                      });
+                                    }
+                                  },
+                                  child: const Text('Change'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        const SizedBox(height: 12),
+                        
                         // Order summary
                         Container(
                           padding: const EdgeInsets.all(16),

@@ -95,7 +95,7 @@ packages:
     source: hosted
     version: "5.0.0"
   flutter_stripe:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: flutter_stripe
       sha256: "4f92660607b91310ec345948355c68843971d3f70673b529076707259b442513"
@@ -209,7 +209,7 @@ packages:
     source: hosted
     version: "1.16.0"
   mobile_scanner:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: mobile_scanner
       sha256: "1b60b8f9d4ce0cb0e7d7bc223c955d083a0737bee66fa1fcfe5de48225e0d5b3"
@@ -289,7 +289,7 @@ packages:
     source: hosted
     version: "3.0.2"
   qr_flutter:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: qr_flutter
       sha256: "5095f0fc6e3f71d08adef8feccc8cea4f12eec18a2e31c2e8d82cb6019f4b097"
@@ -297,7 +297,7 @@ packages:
     source: hosted
     version: "4.1.0"
   shared_preferences:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: shared_preferences
       sha256: "6e8bf70b7fef813df4e9a36f658ac46d107db4b4cfe1048b477d4e453a8159f5"

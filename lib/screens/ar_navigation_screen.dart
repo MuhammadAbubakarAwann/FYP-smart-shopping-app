@@ -3,32 +3,23 @@ import "qr_code_scanner.dart"; // Import QR scanner
 import "cart_screen.dart";
 
 class ARNavigationScreen extends StatefulWidget {
-  
-  const
-  ARNavigationScreen({Key? key}) : super
-  (key: key);
+  const ARNavigationScreen({Key? key}) : super(key: key);
 
   @override
-  State<ARNavigationScreen>
-  createState()
-  =>
-  _ARNavigationScreenState();
+  State<ARNavigationScreen> createState() => _ARNavigationScreenState();
 }
 
 class _ARNavigationScreenState extends State<ARNavigationScreen> {
-  bool
-  isBlueBackground = true;
+  bool isBlueBackground = true;
 
-  void
-  toggleBackground() {
+  void toggleBackground() {
     setState(() {
       isBlueBackground = !isBlueBackground;
     });
   }
 
   // Method to open QR scanner popup
-  void
-  _openQRScanner() {
+  void _openQRScanner() {
     showDialog(
       context: context,
       builder: (context) => QRScannerPopup(
@@ -41,22 +32,19 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
             ),
           );
 
-    // Log the product details
-    print("Product details:");
-    print("ID: ${product.id}");
-    print("Name: ${product.name}");
-    print("Price: ${product.price.toStringAsFixed(2)}");
-  }
-  ,
+          // Log the product details
+          print("Product details:");
+          print("ID: ${product.id}");
+          print("Name: ${product.name}");
+          print("Price: ${product.price.toStringAsFixed(2)}");
+        },
       ),
     );
-}
+  }
 
-@override
-Widget
-build(BuildContext context)
-{
-  return Scaffold(
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
       body: Container(
         color: isBlueBackground ? const Color(0xFF8BE0FF) : Colors.white,
         child: SafeArea(
@@ -152,7 +140,8 @@ build(BuildContext context)
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => CartScreen()),
+                            MaterialPageRoute(
+                                builder: (context) => CartScreen()),
                           );
                         },
                         child: Container(
@@ -352,7 +341,7 @@ build(BuildContext context)
                       ],
                     ),
                   ),
-  ),
+                ),
               ),
 
               // Bottom navigation
@@ -364,20 +353,18 @@ build(BuildContext context)
                   children: [
                     // Item count
                     Row(
-                      children:
-  const [
-                        Icon(Icons.list, color: Colors.grey, size: 20
-  ),
+                      children: const [
+                        Icon(Icons.list, color: Colors.grey, size: 20),
                         SizedBox(width: 8),
                         Text(
                           '1 of 10 item left',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                              color: Color.fromRGBO(158, 158, 158, 1)),
                         ),
                       ],
                     ),
 
-  const Spacer
-  (),
+                    const Spacer(),
 
                     // Add More button (using the provided styling)
                     TextButton(
@@ -416,7 +403,7 @@ build(BuildContext context)
                         ],
                       ),
                     ),
-  ],
+                  ],
                 ),
               ),
             ],
@@ -424,6 +411,5 @@ build(BuildContext context)
         ),
       ),
     );
+  }
 }
-}
-

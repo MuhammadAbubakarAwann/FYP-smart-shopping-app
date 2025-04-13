@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PaymentMethod {
   final int id;
@@ -32,7 +33,8 @@ class PaymentMethod {
 }
 
 class PaymentService {
-  static const String apiBaseUrl = 'http://192.168.1.111:5000';
+  static const String apiBaseUrl = 'http://192.168.100.4:5000';
+  static String? get stripePublishableKey => dotenv.env['STRIPE_PUBLISHABLE_KEY'];
 
   // Validate card details
   static bool validateCardNumber(String cardNumber) {
@@ -169,7 +171,7 @@ class PaymentService {
     }
   }
   
-  // Process a payment
+  // Process a payment with Stripe
   static Future<Map<String, dynamic>> processPayment({
     required int userId,
     required double amount,
@@ -188,7 +190,13 @@ class PaymentService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        return {'success': false, 'error': 'Payment processing failed'};
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false, 
+          'error': errorData['error'] ?? 'Payment processing failed',
+          'details': errorData['details'],
+          'code': errorData['code']
+        };
       }
     } catch (e) {
       print('Error processing payment: $e');
