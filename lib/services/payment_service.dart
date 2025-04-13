@@ -10,7 +10,7 @@ class PaymentMethod {
   final int expiryMonth;
   final int expiryYear;
   final bool isDefault;
-  
+
   PaymentMethod({
     required this.id,
     required this.last4,
@@ -19,7 +19,7 @@ class PaymentMethod {
     required this.expiryYear,
     required this.isDefault,
   });
-  
+
   factory PaymentMethod.fromJson(Map<String, dynamic> json) {
     return PaymentMethod(
       id: json['id'],
@@ -34,7 +34,8 @@ class PaymentMethod {
 
 class PaymentService {
   static const String apiBaseUrl = 'http://192.168.100.4:5000';
-  static String? get stripePublishableKey => dotenv.env['STRIPE_PUBLISHABLE_KEY'];
+  static String? get stripePublishableKey =>
+      dotenv.env['STRIPE_PUBLISHABLE_KEY'];
 
   // Validate card details
   static bool validateCardNumber(String cardNumber) {
@@ -146,23 +147,25 @@ class PaymentService {
       throw Exception('Error saving payment method: $e');
     }
   }
-  
+
   // Get saved payment methods for a user
   static Future<List<PaymentMethod>> getPaymentMethods(int userId) async {
     try {
       final response = await http.get(
         Uri.parse('$apiBaseUrl/api/payment/$userId/payment-methods'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         if (data['success'] == true && data['paymentMethods'] != null) {
           final List<dynamic> methods = data['paymentMethods'];
-          return methods.map((method) => PaymentMethod.fromJson(method)).toList();
+          return methods
+              .map((method) => PaymentMethod.fromJson(method))
+              .toList();
         }
       }
-      
+
       // If no payment methods found or error occurred
       return [];
     } catch (e) {
@@ -170,12 +173,68 @@ class PaymentService {
       return [];
     }
   }
-  
+
+  // Request OTP for payment verification
+// Fixed requestOtp method
+  static Future<Map<String, dynamic>> requestOtp(int userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/api/payment/generate-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': userId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'error': errorData['error'] ?? 'Failed to request OTP',
+        };
+      }
+    } catch (e) {
+      print('Error requesting OTP: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  // Verify OTP
+  static Future<Map<String, dynamic>> verifyOtp(int userId, String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/api/payment/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': userId,
+          'otp': otp,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'error': errorData['error'] ?? 'Failed to verify OTP',
+          'attemptsLeft': errorData['attemptsLeft'],
+        };
+      }
+    } catch (e) {
+      print('Error verifying OTP: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   // Process a payment with Stripe
   static Future<Map<String, dynamic>> processPayment({
     required int userId,
     required double amount,
     int? paymentMethodId,
+    required bool otpVerified,
   }) async {
     try {
       final response = await http.post(
@@ -184,15 +243,16 @@ class PaymentService {
         body: jsonEncode({
           'amount': amount,
           'paymentMethodId': paymentMethodId,
+          'otpVerified': otpVerified,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
         final errorData = jsonDecode(response.body);
         return {
-          'success': false, 
+          'success': false,
           'error': errorData['error'] ?? 'Payment processing failed',
           'details': errorData['details'],
           'code': errorData['code']

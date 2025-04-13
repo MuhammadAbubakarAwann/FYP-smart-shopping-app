@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/payment_service.dart';
+import 'package:flutter/services.dart';
 
 // Reuse the Product model from qr_code_scanner.dart
 class Product {
@@ -14,7 +15,7 @@ class Product {
   final String qrCode;
   final String status;
   int quantity;
-  
+
   Product({
     required this.id,
     required this.name,
@@ -24,21 +25,21 @@ class Product {
     required this.status,
     this.quantity = 1,
   });
-  
+
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'],
       name: json['name'],
       category: json['category'] ?? '',
-      price: json['price'] != null 
-          ? double.tryParse(json['price'].toString()) ?? 0.0 
+      price: json['price'] != null
+          ? double.tryParse(json['price'].toString()) ?? 0.0
           : 0.0,
       qrCode: json['qr_code'] ?? '',
       status: json['status'] ?? 'IN_STORE',
       quantity: json['quantity'] ?? 1,
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -54,9 +55,9 @@ class Product {
 
 class CartScreen extends StatefulWidget {
   final int userId;
-  
+
   const CartScreen({
-    Key? key, 
+    Key? key,
     this.userId = 1, // Default user ID for testing
   }) : super(key: key);
 
@@ -71,14 +72,15 @@ class _CartScreenState extends State<CartScreen> {
   bool isProcessingPayment = false;
   List<PaymentMethod> paymentMethods = [];
   PaymentMethod? selectedPaymentMethod;
-  
+  bool isOtpVerified = false;
+
   @override
   void initState() {
     super.initState();
     _loadCartItems();
     _loadPaymentMethods();
   }
-  
+
   Future<void> _loadPaymentMethods() async {
     try {
       final methods = await PaymentService.getPaymentMethods(widget.userId);
@@ -87,26 +89,25 @@ class _CartScreenState extends State<CartScreen> {
         if (methods.isNotEmpty) {
           // Find default payment method or use the first one
           selectedPaymentMethod = methods.firstWhere(
-            (method) => method.isDefault, 
-            orElse: () => methods.first
-          );
+              (method) => method.isDefault,
+              orElse: () => methods.first);
         }
       });
     } catch (e) {
       print('Error loading payment methods: $e');
     }
   }
-  
+
   Future<void> _loadCartItems() async {
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
-    
+
     try {
       // First try to load from local storage (for offline access)
       await _loadCartFromLocalStorage();
-      
+
       // Then try to fetch from server (for up-to-date data)
       await _fetchCartFromServer();
     } catch (e) {
@@ -120,16 +121,17 @@ class _CartScreenState extends State<CartScreen> {
       });
     }
   }
-  
+
   Future<void> _loadCartFromLocalStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cartData = prefs.getString('cart_items');
-      
+
       if (cartData != null) {
         final List<dynamic> decodedData = json.decode(cartData);
         setState(() {
-          cartItems = decodedData.map((item) => Product.fromJson(item)).toList();
+          cartItems =
+              decodedData.map((item) => Product.fromJson(item)).toList();
         });
         print('Loaded ${cartItems.length} items from local storage');
       }
@@ -138,21 +140,21 @@ class _CartScreenState extends State<CartScreen> {
       // Don't set error message here, as we'll try server next
     }
   }
-  
+
   Future<void> _fetchCartFromServer() async {
     try {
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.get(
         Uri.parse('$apiUrl/api/cart/${widget.userId}'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         if (data['items'] != null) {
           final List<dynamic> items = data['items'];
           final List<Product> serverItems = [];
-          
+
           for (var item in items) {
             final product = item['product'];
             if (product != null) {
@@ -162,14 +164,14 @@ class _CartScreenState extends State<CartScreen> {
               }));
             }
           }
-          
+
           setState(() {
             cartItems = serverItems;
           });
-          
+
           // Save to local storage for offline access
           _saveCartToLocalStorage();
-          
+
           print('Loaded ${cartItems.length} items from server');
         }
       } else {
@@ -177,7 +179,8 @@ class _CartScreenState extends State<CartScreen> {
         // Only set error if we don't have local data
         if (cartItems.isEmpty) {
           setState(() {
-            errorMessage = 'Failed to fetch cart from server. Status: ${response.statusCode}';
+            errorMessage =
+                'Failed to fetch cart from server. Status: ${response.statusCode}';
           });
         }
       }
@@ -191,25 +194,26 @@ class _CartScreenState extends State<CartScreen> {
       }
     }
   }
-  
+
   Future<void> _saveCartToLocalStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cartData = json.encode(cartItems.map((item) => item.toJson()).toList());
+      final cartData =
+          json.encode(cartItems.map((item) => item.toJson()).toList());
       await prefs.setString('cart_items', cartData);
       print('Saved cart to local storage');
     } catch (e) {
       print('Error saving to local storage: $e');
     }
   }
-  
+
   Future<void> _updateQuantity(Product product, int newQuantity) async {
     if (newQuantity < 1) return;
-    
+
     setState(() {
       product.quantity = newQuantity;
     });
-    
+
     try {
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.put(
@@ -219,7 +223,7 @@ class _CartScreenState extends State<CartScreen> {
           'quantity': newQuantity,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         print('Updated quantity on server');
         // Update local storage
@@ -229,7 +233,8 @@ class _CartScreenState extends State<CartScreen> {
         // Show a snackbar but don't revert the UI change
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to update quantity on server. Will retry later.'),
+            content:
+                Text('Failed to update quantity on server. Will retry later.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -244,21 +249,21 @@ class _CartScreenState extends State<CartScreen> {
       );
     }
   }
-  
+
   Future<void> _removeItem(Product product) async {
     setState(() {
       cartItems.removeWhere((item) => item.id == product.id);
     });
-    
+
     // Update local storage immediately
     _saveCartToLocalStorage();
-    
+
     try {
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.delete(
         Uri.parse('$apiUrl/api/cart/${widget.userId}/item/${product.id}'),
       );
-      
+
       if (response.statusCode == 200) {
         print('Removed item from server');
       } else {
@@ -280,7 +285,7 @@ class _CartScreenState extends State<CartScreen> {
       );
     }
   }
-  
+
   // Show payment method selection dialog
   Future<PaymentMethod?> _showPaymentMethodDialog() async {
     if (paymentMethods.isEmpty) {
@@ -292,7 +297,7 @@ class _CartScreenState extends State<CartScreen> {
       );
       return null;
     }
-    
+
     return await showDialog<PaymentMethod>(
       context: context,
       builder: (BuildContext context) {
@@ -316,9 +321,13 @@ class _CartScreenState extends State<CartScreen> {
                 ...paymentMethods.map((method) {
                   return ListTile(
                     leading: Icon(_getCardIcon(method.brand)),
-                    title: Text('${method.brand.toUpperCase()} •••• ${method.last4}'),
-                    subtitle: Text('Expires ${method.expiryMonth}/${method.expiryYear % 100}'),
-                    trailing: method.isDefault ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                    title: Text(
+                        '${method.brand.toUpperCase()} •••• ${method.last4}'),
+                    subtitle: Text(
+                        'Expires ${method.expiryMonth}/${method.expiryYear % 100}'),
+                    trailing: method.isDefault
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : null,
                     onTap: () {
                       Navigator.of(context).pop(method);
                     },
@@ -336,7 +345,7 @@ class _CartScreenState extends State<CartScreen> {
       },
     );
   }
-  
+
   IconData _getCardIcon(String brand) {
     switch (brand.toLowerCase()) {
       case 'visa':
@@ -349,7 +358,325 @@ class _CartScreenState extends State<CartScreen> {
         return Icons.credit_card;
     }
   }
-  
+
+  // Request OTP for payment verification
+  Future<void> _requestOtp() async {
+    setState(() {
+      isProcessingPayment = true;
+    });
+
+    try {
+      final result = await PaymentService.requestOtp(widget.userId);
+
+      setState(() {
+        isProcessingPayment = false;
+      });
+
+      if (result['success'] == true) {
+        // Show OTP input dialog
+        await _showOtpInputDialog(result['email']);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['error'] ?? 'Failed to send OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        isProcessingPayment = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Show OTP input dialog
+  Future<void> _showOtpInputDialog(String? maskedEmail) async {
+    // Create 6 text editing controllers for each digit
+    List<TextEditingController> otpControllers = List.generate(
+      6,
+      (index) => TextEditingController(),
+    );
+
+    // Create 6 focus nodes for each digit field
+    List<FocusNode> focusNodes = List.generate(
+      6,
+      (index) => FocusNode(),
+    );
+
+    // Function to get the complete OTP
+    String getOtp() {
+      return otpControllers.map((controller) => controller.text).join('');
+    }
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            bool isVerifying = false;
+            String? errorMessage;
+            int? attemptsLeft;
+
+            // Handle digit input and focus changes
+            void onDigitChanged(String value, int index) {
+              if (value.length == 1) {
+                // Move to next field
+                if (index < 5) {
+                  focusNodes[index + 1].requestFocus();
+                } else {
+                  // Last digit entered, hide keyboard
+                  FocusManager.instance.primaryFocus?.unfocus();
+                }
+              }
+            }
+
+            // Handle backspace key
+            void onKeyEvent(RawKeyEvent event, int index) {
+              if (event is RawKeyDownEvent) {
+                if (event.logicalKey == LogicalKeyboardKey.backspace) {
+                  if (otpControllers[index].text.isEmpty && index > 0) {
+                    // Move to previous field on backspace if current field is empty
+                    focusNodes[index - 1].requestFocus();
+                  }
+                }
+              }
+            }
+
+            Future<void> verifyOtp() async {
+              final otp = getOtp();
+
+              if (otp.length < 6) {
+                setState(() {
+                  errorMessage = 'Please enter all 6 digits';
+                });
+                return;
+              }
+
+              setState(() {
+                isVerifying = true;
+                errorMessage = null;
+              });
+
+              try {
+                final result =
+                    await PaymentService.verifyOtp(widget.userId, otp);
+
+                if (result['success'] == true) {
+                  // OTP verified successfully
+                  this.setState(() {
+                    isOtpVerified = true;
+                  });
+                  Navigator.of(context).pop();
+
+                  // Proceed with payment
+                  _processPayment();
+                } else {
+                  setState(() {
+                    isVerifying = false;
+                    errorMessage = result['error'];
+                    attemptsLeft = result['attemptsLeft'];
+
+                    // Clear all fields on error
+                    for (var controller in otpControllers) {
+                      controller.clear();
+                    }
+                    // Focus on first field
+                    focusNodes[0].requestFocus();
+                  });
+                }
+              } catch (e) {
+                setState(() {
+                  isVerifying = false;
+                  errorMessage = 'Error: $e';
+                });
+              }
+            }
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(
+                  color: Color(0xFF8BE0FF), // Border color
+                  width: 2,
+                ),
+              ),
+              backgroundColor: const Color.fromARGB(255, 208, 242, 255),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(context).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Verify Payment',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0CA8E1),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Enter the verification code sent to ${maskedEmail ?? 'your email'}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Color.fromARGB(223, 12, 168, 225),
+
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+
+                      // OTP input boxes
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          6,
+                          (index) => Container(
+                            width: 35,
+                            height: 42,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            decoration: BoxDecoration(
+                              color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: focusNodes[index].hasFocus
+                                    ? const Color(0xFF8BE0FF)
+                                    : const Color(0xFF8BE0FF).withOpacity(0.5),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: RawKeyboardListener(
+                              focusNode: FocusNode(),
+                              onKey: (event) => onKeyEvent(event, index),
+                              child: TextField(
+                                controller: otpControllers[index],
+                                focusNode: focusNodes[index],
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                maxLength: 1,
+                                autofocus: index == 0, // Focus first field
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0CA8E1),
+                                ),
+                                decoration: const InputDecoration(
+                                  counterText: '',
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                onChanged: (value) =>
+                                    onDigitChanged(value, index),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Error message
+                      if (errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+
+                      // Attempts left
+                      if (attemptsLeft != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Attempts left: $attemptsLeft',
+                            style: TextStyle(
+                              color: attemptsLeft! < 2
+                                  ? Colors.red
+                                  : Colors.orange,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 20),
+
+                      // Action buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.of(context).pop();
+                              await _requestOtp();
+                            },
+                            child: const Text(
+                              'Resend Code',
+                              style: TextStyle(
+                                color: Color(0xFF0CA8E1),
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: isVerifying ? null : verifyOtp,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0CA8E1),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 30, vertical: 10),
+                            ),
+                            child: isVerifying
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('Verify'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // Show payment confirmation dialog
   Future<bool> _showPaymentConfirmationDialog() async {
     return await showDialog(
@@ -419,7 +746,8 @@ class _CartScreenState extends State<CartScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 30, vertical: 10),
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -431,7 +759,8 @@ class _CartScreenState extends State<CartScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 30, vertical: 10),
                       ),
                       child: const Text('Pay Now'),
                     ),
@@ -445,7 +774,7 @@ class _CartScreenState extends State<CartScreen> {
       },
     );
   }
-  
+
   // Show payment success dialog
   Future<void> _showPaymentSuccessDialog(String transactionId) async {
     await showDialog(
@@ -518,7 +847,8 @@ class _CartScreenState extends State<CartScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 10),
                   ),
                   child: const Text('Done'),
                 ),
@@ -529,7 +859,7 @@ class _CartScreenState extends State<CartScreen> {
       },
     );
   }
-  
+
   // Show payment error dialog
   Future<void> _showPaymentErrorDialog(String errorMessage) async {
     await showDialog(
@@ -593,7 +923,8 @@ class _CartScreenState extends State<CartScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 10),
                   ),
                   child: const Text('Try Again'),
                 ),
@@ -604,9 +935,9 @@ class _CartScreenState extends State<CartScreen> {
       },
     );
   }
-  
-  // Process payment and checkout
-  Future<void> _processPayment() async {
+
+  // Start payment flow
+  Future<void> _startPaymentFlow() async {
     if (cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -616,7 +947,7 @@ class _CartScreenState extends State<CartScreen> {
       );
       return;
     }
-    
+
     // Let user select payment method if they have multiple
     if (paymentMethods.length > 1) {
       final selectedMethod = await _showPaymentMethodDialog();
@@ -626,19 +957,35 @@ class _CartScreenState extends State<CartScreen> {
         });
       }
     }
-    
+
     // Show confirmation dialog
     final bool confirmed = await _showPaymentConfirmationDialog();
     if (!confirmed) return;
-    
+
+    // Request OTP for verification
+    await _requestOtp();
+  }
+
+  // Process payment and checkout
+  Future<void> _processPayment() async {
+    if (!isOtpVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('OTP verification required'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       isProcessingPayment = true;
     });
-    
+
     try {
       // Calculate total amount
       final double totalAmount = _calculateTotal;
-      
+
       // Process the checkout on the server
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.post(
@@ -646,46 +993,50 @@ class _CartScreenState extends State<CartScreen> {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'paymentMethodId': selectedPaymentMethod?.id,
+          'otpVerified': isOtpVerified,
         }),
       );
-      
+
       setState(() {
         isProcessingPayment = false;
+        isOtpVerified = false; // Reset OTP verification status
       });
-      
+
       final responseData = jsonDecode(response.body);
-      
+
       if (response.statusCode == 200 && responseData['success'] != false) {
         // Show success dialog
-        await _showPaymentSuccessDialog(responseData['transactionId'] ?? 'Unknown');
-        
+        await _showPaymentSuccessDialog(
+            responseData['transactionId'] ?? 'Unknown');
+
         // Clear local cart
         setState(() {
           cartItems = [];
         });
-        
+
         // Clear local storage
         _saveCartToLocalStorage();
       } else {
         // Show error dialog
         await _showPaymentErrorDialog(
-          responseData['error'] ?? 'Payment failed. Please try again.'
-        );
+            responseData['error'] ?? 'Payment failed. Please try again.');
       }
     } catch (e) {
       print('Error during payment: $e');
       setState(() {
         isProcessingPayment = false;
+        isOtpVerified = false; // Reset OTP verification status
       });
-      
-      await _showPaymentErrorDialog('Network error. Please check your connection and try again.');
+
+      await _showPaymentErrorDialog(
+          'Network error. Please check your connection and try again.');
     }
   }
-  
+
   double get _calculateTotal {
     return cartItems.fold(0, (sum, item) => sum + (item.price * item.quantity));
   }
-  
+
   // Get icon widget based on item name
   Widget _getItemIcon(String itemName) {
     // Map of item names to colors
@@ -703,7 +1054,8 @@ class _CartScreenState extends State<CartScreen> {
     };
 
     // Get color for this item, or use a default
-    final Color backgroundColor = itemColors[itemName] ?? const Color(0xFFE1F7FF);
+    final Color backgroundColor =
+        itemColors[itemName] ?? const Color(0xFFE1F7FF);
 
     // Map of item names to icons
     final Map<String, IconData> itemIcons = {
@@ -736,7 +1088,7 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -748,7 +1100,8 @@ class _CartScreenState extends State<CartScreen> {
               // Header with title and refresh button
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [
@@ -765,7 +1118,6 @@ class _CartScreenState extends State<CartScreen> {
                   children: [
                     Row(
                       children: [
-                       
                         Text(
                           'Shopping Cart',
                           style: TextStyle(
@@ -787,218 +1139,353 @@ class _CartScreenState extends State<CartScreen> {
                   ],
                 ),
               ),
-              
+
               // Main content
               Expanded(
                 child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF0CA8E1),
-                      ),
-                    )
-                  : errorMessage != null && cartItems.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 70,
-                              color: Color(0xFF8BE0FF),
-                            ),
-                            const SizedBox(height: 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32),
-                              child: Text(
-                                errorMessage!,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: _loadCartItems,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0CA8E1),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text('Try Again'),
-                            ),
-                          ],
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF0CA8E1),
                         ),
                       )
-                    : cartItems.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE1F7FF),
-                                  borderRadius: BorderRadius.circular(60),
-                                ),
-                                child: const Icon(
-                                  Icons.shopping_cart_outlined,
+                    : errorMessage != null && cartItems.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
                                   size: 70,
-                                  color: Color(0xFF0CA8E1),
+                                  color: Color(0xFF8BE0FF),
                                 ),
-                              ),
-                              const SizedBox(height: 24),
-                              const Text(
-                                'Your cart is empty',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0CA8E1),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 40),
-                                child: Text(
-                                  'Scan products to add them to your cart',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-                              ElevatedButton.icon(
-                                onPressed: () => Navigator.pop(context),
-                                icon: const Icon(Icons.qr_code_scanner),
-                                label: const Text('Start Shopping'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0CA8E1),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Column(
-                          children: [
-                            // Cart items count
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    '${cartItems.length} ${cartItems.length == 1 ? 'item' : 'items'} in cart',
+                                const SizedBox(height: 16),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 32),
+                                  child: Text(
+                                    errorMessage!,
                                     style: const TextStyle(
                                       fontSize: 16,
-                                      fontWeight: FontWeight.w500,
                                       color: Colors.grey,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Cart items list
-                            Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                itemCount: cartItems.length,
-                                itemBuilder: (context, index) {
-                                  final item = cartItems[index];
-                                  final itemTotalPrice = item.price * item.quantity;
-                                  
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE1F7FF),
-                                      borderRadius: BorderRadius.circular(12),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton(
+                                  onPressed: _loadCartItems,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0CA8E1),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Row(
-                                        children: [
-                                          // Item icon
-                                          _getItemIcon(item.name),
-                                          const SizedBox(width: 16),
-                                          
-                                          // Item details
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                  ),
+                                  child: const Text('Try Again'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : cartItems.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 120,
+                                      height: 120,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE1F7FF),
+                                        borderRadius: BorderRadius.circular(60),
+                                      ),
+                                      child: const Icon(
+                                        Icons.shopping_cart_outlined,
+                                        size: 70,
+                                        color: Color(0xFF0CA8E1),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    const Text(
+                                      'Your cart is empty',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF0CA8E1),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 40),
+                                      child: Text(
+                                        'Scan products to add them to your cart',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 32),
+                                    ElevatedButton.icon(
+                                      onPressed: () => Navigator.pop(context),
+                                      icon: const Icon(Icons.qr_code_scanner),
+                                      label: const Text('Start Shopping'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF0CA8E1),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Column(
+                                children: [
+                                  // Cart items count
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          '${cartItems.length} ${cartItems.length == 1 ? 'item' : 'items'} in cart',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Cart items list
+                                  Expanded(
+                                    child: ListView.builder(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 8),
+                                      itemCount: cartItems.length,
+                                      itemBuilder: (context, index) {
+                                        final item = cartItems[index];
+                                        final itemTotalPrice =
+                                            item.price * item.quantity;
+
+                                        return Container(
+                                          margin:
+                                              const EdgeInsets.only(bottom: 12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE1F7FF),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: Row(
                                               children: [
-                                                Text(
-                                                  item.name,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                    color: Colors.black87,
+                                                // Item icon
+                                                _getItemIcon(item.name),
+                                                const SizedBox(width: 16),
+
+                                                // Item details
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        item.name,
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 16,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        item.category,
+                                                        style: TextStyle(
+                                                          color:
+                                                              Colors.grey[600],
+                                                          fontSize: 14,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 8),
+
+                                                      // Price information
+                                                      Row(
+                                                        children: [
+                                                          // Unit price
+                                                          Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              const Text(
+                                                                'Unit Price',
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                '\$${item.price.toStringAsFixed(2)}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 14,
+                                                                  color: Color(
+                                                                      0xFF0CA8E1),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+
+                                                          const SizedBox(
+                                                              width: 24),
+
+                                                          // Total price
+                                                          Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              const Text(
+                                                                'Total',
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                '\$${itemTotalPrice.toStringAsFixed(2)}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 14,
+                                                                  color: Color(
+                                                                      0xFF0CA8E1),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  item.category,
-                                                  style: TextStyle(
-                                                    color: Colors.grey[600],
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                
-                                                // Price information
-                                                Row(
+
+                                                // Quantity controls
+                                                Column(
                                                   children: [
-                                                    // Unit price
-                                                    Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        const Text(
-                                                          'Unit Price',
-                                                          style: TextStyle(
-                                                            fontSize: 12,
-                                                            color: Colors.grey,
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          '\$${item.price.toStringAsFixed(2)}',
-                                                          style: const TextStyle(
-                                                            fontWeight: FontWeight.bold,
-                                                            fontSize: 14,
-                                                            color: Color(0xFF0CA8E1),
-                                                          ),
-                                                        ),
-                                                      ],
+                                                    // Remove button
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                          Icons.delete_outline,
+                                                          color: Color.fromARGB(
+                                                              255,
+                                                              234,
+                                                              85,
+                                                              85)),
+                                                      onPressed: () =>
+                                                          _removeItem(item),
+                                                      padding: EdgeInsets.zero,
+                                                      constraints:
+                                                          const BoxConstraints(),
                                                     ),
-                                                    
-                                                    const SizedBox(width: 24),
-                                                    
-                                                    // Total price
-                                                    Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                    const SizedBox(height: 12),
+
+                                                    // Quantity controls
+                                                    Row(
                                                       children: [
-                                                        const Text(
-                                                          'Total',
-                                                          style: TextStyle(
-                                                            fontSize: 12,
-                                                            color: Colors.grey,
+                                                        // Decrease quantity
+                                                        Container(
+                                                          width: 28,
+                                                          height: 28,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color:
+                                                                Colors.red[50],
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        4),
+                                                          ),
+                                                          child: IconButton(
+                                                            icon: const Icon(
+                                                                Icons.remove,
+                                                                size: 16),
+                                                            padding:
+                                                                EdgeInsets.zero,
+                                                            color: Colors.red,
+                                                            onPressed: () =>
+                                                                _updateQuantity(
+                                                                    item,
+                                                                    item.quantity -
+                                                                        1),
                                                           ),
                                                         ),
-                                                        Text(
-                                                          '\$${itemTotalPrice.toStringAsFixed(2)}',
-                                                          style: const TextStyle(
-                                                            fontWeight: FontWeight.bold,
-                                                            fontSize: 14,
-                                                            color: Color(0xFF0CA8E1),
+
+                                                        // Quantity display
+                                                        Container(
+                                                          width: 30,
+                                                          alignment:
+                                                              Alignment.center,
+                                                          child: Text(
+                                                            '${item.quantity}',
+                                                            style:
+                                                                const TextStyle(
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+
+                                                        // Increase quantity
+                                                        Container(
+                                                          width: 28,
+                                                          height: 28,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: Colors
+                                                                .green[50],
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        4),
+                                                          ),
+                                                          child: IconButton(
+                                                            icon: const Icon(
+                                                                Icons.add,
+                                                                size: 16),
+                                                            padding:
+                                                                EdgeInsets.zero,
+                                                            color: Colors.green,
+                                                            onPressed: () =>
+                                                                _updateQuantity(
+                                                                    item,
+                                                                    item.quantity +
+                                                                        1),
                                                           ),
                                                         ),
                                                       ],
@@ -1008,81 +1495,14 @@ class _CartScreenState extends State<CartScreen> {
                                               ],
                                             ),
                                           ),
-                                          
-                                          // Quantity controls
-                                          Column(
-                                            children: [
-                                              // Remove button
-                                              IconButton(
-                                                icon: const Icon(Icons.delete_outline, color: Color.fromARGB(255, 234, 85, 85)),
-                                                onPressed: () => _removeItem(item),
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                              ),
-                                              const SizedBox(height: 12),
-                                              
-                                              // Quantity controls
-                                              Row(
-                                                children: [
-                                                  // Decrease quantity
-                                                  Container(
-                                                    width: 28,
-                                                    height: 28,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.red[50],
-                                                      borderRadius: BorderRadius.circular(4),
-                                                    ),
-                                                    child: IconButton(
-                                                      icon: const Icon(Icons.remove, size: 16),
-                                                      padding: EdgeInsets.zero,
-                                                      color: Colors.red,
-                                                      onPressed: () => _updateQuantity(item, item.quantity - 1),
-                                                    ),
-                                                  ),
-                                                  
-                                                  // Quantity display
-                                                  Container(
-                                                    width: 30,
-                                                    alignment: Alignment.center,
-                                                    child: Text(
-                                                      '${item.quantity}',
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  
-                                                  // Increase quantity
-                                                  Container(
-                                                    width: 28,
-                                                    height: 28,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.green[50],
-                                                      borderRadius: BorderRadius.circular(4),
-                                                    ),
-                                                    child: IconButton(
-                                                      icon: const Icon(Icons.add, size: 16),
-                                                      padding: EdgeInsets.zero,
-                                                      color: Colors.green,
-                                                      onPressed: () => _updateQuantity(item, item.quantity + 1),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
               ),
-              
+
               // Cart summary and checkout
               if (cartItems.isNotEmpty)
                 Container(
@@ -1105,7 +1525,8 @@ class _CartScreenState extends State<CartScreen> {
                         // Payment method display
                         if (selectedPaymentMethod != null)
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 16),
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
@@ -1115,7 +1536,8 @@ class _CartScreenState extends State<CartScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Icon(_getCardIcon(selectedPaymentMethod!.brand)),
+                                    Icon(_getCardIcon(
+                                        selectedPaymentMethod!.brand)),
                                     const SizedBox(width: 8),
                                     Text(
                                       '${selectedPaymentMethod!.brand.toUpperCase()} •••• ${selectedPaymentMethod!.last4}',
@@ -1128,7 +1550,8 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                                 TextButton(
                                   onPressed: () async {
-                                    final method = await _showPaymentMethodDialog();
+                                    final method =
+                                        await _showPaymentMethodDialog();
                                     if (method != null) {
                                       setState(() {
                                         selectedPaymentMethod = method;
@@ -1140,9 +1563,9 @@ class _CartScreenState extends State<CartScreen> {
                               ],
                             ),
                           ),
-                        
+
                         const SizedBox(height: 12),
-                        
+
                         // Order summary
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -1172,25 +1595,27 @@ class _CartScreenState extends State<CartScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Checkout button
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: isProcessingPayment ? null : _processPayment,
-                            icon: isProcessingPayment 
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.shopping_cart_checkout),
+                            onPressed:
+                                isProcessingPayment ? null : _startPaymentFlow,
+                            icon: isProcessingPayment
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.shopping_cart_checkout),
                             label: Text(
-                              isProcessingPayment ? 'Processing...' : 'Checkout',
+                              isProcessingPayment
+                                  ? 'Processing...'
+                                  : 'Checkout',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -1206,9 +1631,9 @@ class _CartScreenState extends State<CartScreen> {
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 16),
-                        
+
                         // Continue shopping button
                         SizedBox(
                           width: double.infinity,
