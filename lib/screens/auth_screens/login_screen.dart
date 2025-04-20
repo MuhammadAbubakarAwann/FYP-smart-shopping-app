@@ -4,6 +4,7 @@ import 'package:flutter_application_1/screens/auth_screens/forgot_pass_screen.da
 import 'package:fluttertoast/fluttertoast.dart';
 import 'registration_screen.dart';
 import '../payment_details_screen.dart'; // Import the PaymentPage
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -57,12 +58,55 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _signInWithGoogle() async {
-    // Implement Google Sign-In
-    // This is a placeholder - you'll need to add the firebase_auth_oauth package
-    // and implement the actual Google sign-in flow
-    Fluttertoast.showToast(msg: 'Google Sign-In not implemented yet');
+Future<void> _signInWithGoogle() async {
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    final GoogleSignIn googleSignIn = GoogleSignIn();
+
+    // Force the account picker by signing out first
+    await googleSignIn.signOut(); // 👈 This is key
+
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+    if (googleUser == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final UserCredential userCredential = await _auth.signInWithCredential(credential);
+    final User? user = userCredential.user;
+
+    if (user != null) {
+      Fluttertoast.showToast(msg: 'Google Sign-In Successful!');
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => PaymentDetailsScreen()),
+      );
+    }
+  } catch (e) {
+    Fluttertoast.showToast(
+      msg: 'Google Sign-In Error: ${e.toString().split(']').last.trim()}',
+      toastLength: Toast.LENGTH_LONG,
+    );
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
