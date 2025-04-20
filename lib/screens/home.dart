@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'payment_details_screen.dart';
 
-class LandingScreen extends StatefulWidget {
-  const LandingScreen({Key? key}) : super(key: key);
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  _LandingScreenState createState() => _LandingScreenState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   OverlayEntry? _infoOverlay;
   
   // Mock user ID for demo purposes
