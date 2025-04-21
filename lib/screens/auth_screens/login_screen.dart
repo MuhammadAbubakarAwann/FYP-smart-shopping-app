@@ -58,55 +58,57 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-Future<void> _signInWithGoogle() async {
-  setState(() {
-    _isLoading = true;
-  });
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-  try {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
 
-    // Force the account picker by signing out first
-    await googleSignIn.signOut(); // 👈 This is key
+      // Force the account picker by signing out first
+      await googleSignIn.signOut(); // 👈 This is key
 
-    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
-    if (googleUser == null) {
+      if (googleUser == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        Fluttertoast.showToast(msg: 'Google Sign-In Successful!');
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => PaymentDetailsScreen()),
+        );
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Google Sign-In Error: ${e.toString().split(']').last.trim()}',
+        toastLength: Toast.LENGTH_LONG,
+      );
+    } finally {
       setState(() {
         _isLoading = false;
       });
-      return;
     }
-
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    final UserCredential userCredential = await _auth.signInWithCredential(credential);
-    final User? user = userCredential.user;
-
-    if (user != null) {
-      Fluttertoast.showToast(msg: 'Google Sign-In Successful!');
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => PaymentDetailsScreen()),
-      );
-    }
-  } catch (e) {
-    Fluttertoast.showToast(
-      msg: 'Google Sign-In Error: ${e.toString().split(']').last.trim()}',
-      toastLength: Toast.LENGTH_LONG,
-    );
-  } finally {
-    setState(() {
-      _isLoading = false;
-    });
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -126,41 +128,6 @@ Future<void> _signInWithGoogle() async {
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
                 ),
-              ),
-            ),
-
-            // Don't have an account - positioned at bottom
-            Positioned(
-              bottom: 30,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account?",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => RegisterScreen()));
-                    },
-                    child: Text(
-                      'Sign up',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
 
@@ -222,9 +189,41 @@ Future<void> _signInWithGoogle() async {
 
                       // Google login button
                       _buildGoogleButton(),
+                      SizedBox(height: 40), // optional space
 
-                      // Added extra space at the bottom to ensure content doesn't overlap with the bottom text
-                      SizedBox(height: 80),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Don't have an account?",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => RegisterScreen()),
+                              );
+                            },
+                            child: Text(
+                              'Sign up',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(
+                          height:
+                              20), 
                     ],
                   ),
                 ),

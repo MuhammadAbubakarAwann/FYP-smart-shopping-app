@@ -13,7 +13,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   bool loading = false;
   bool otpSent = false;
@@ -23,53 +24,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
-    
+
     // Basic validation
     if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       Fluttertoast.showToast(msg: "Please fill all fields");
       return;
     }
-    
+
     if (password != confirmPassword) {
       Fluttertoast.showToast(msg: "Passwords do not match.");
       return;
     }
-    
+
     setState(() => loading = true);
-    
+
     try {
       // Check if email already exists
       final methods = await _auth.fetchSignInMethodsForEmail(email);
       if (methods.isNotEmpty) {
-        Fluttertoast.showToast(msg: "Email already in use. Please login instead.");
+        Fluttertoast.showToast(
+            msg: "Email already in use. Please login instead.");
         setState(() => loading = false);
         return;
       }
-      
+
       // Create user with email and password but don't sign in yet
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email, 
-        password: password
-      );
-      
+          email: email, password: password);
+
       // Send email verification
       await userCredential.user!.sendEmailVerification();
-      
+
       // Sign out immediately - user will need to verify email before logging in
       await _auth.signOut();
-      
+
       setState(() {
         otpSent = true;
         loading = false;
       });
-      
+
       Fluttertoast.showToast(
-        msg: "Verification email sent! Please check your inbox and verify your email.",
-        toastLength: Toast.LENGTH_LONG
-      );
-      
+          msg:
+              "Verification email sent! Please check your inbox and verify your email.",
+          toastLength: Toast.LENGTH_LONG);
     } on FirebaseAuthException catch (e) {
-      Fluttertoast.showToast(msg: e.message ?? "Failed to send verification email");
+      Fluttertoast.showToast(
+          msg: e.message ?? "Failed to send verification email");
       setState(() => loading = false);
     }
   }
@@ -77,28 +77,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Verify OTP and complete registration
   Future<void> _verifyEmailAndRegister() async {
     setState(() => loading = true);
-    
+
     try {
       // Sign in with email and password
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
-      
+
       // Try to sign in
       final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password
-      );
-      
+          email: email, password: password);
+
       // Check if email is verified
       await userCredential.user!.reload();
       final user = _auth.currentUser;
-      
+
       if (user != null && user.emailVerified) {
         // Email is verified, update user profile with name
         await user.updateDisplayName(_nameController.text.trim());
-        
+
         Fluttertoast.showToast(msg: "Registration Successful!");
-        
+
         // Navigate to login page
         Navigator.pushReplacement(
           context,
@@ -108,9 +106,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // Email not verified yet
         await _auth.signOut();
         Fluttertoast.showToast(
-          msg: "Please verify your email before logging in.",
-          toastLength: Toast.LENGTH_LONG
-        );
+            msg: "Please verify your email before logging in.",
+            toastLength: Toast.LENGTH_LONG);
       }
     } on FirebaseAuthException catch (e) {
       Fluttertoast.showToast(msg: e.message ?? "Verification failed");
@@ -140,41 +137,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
 
-            // Already have an account - positioned at bottom
-            Positioned(
-              bottom: 30,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Already have an account?",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => LoginPage()),
-                      );
-                    },
-                    child: Text(
-                      'Sign in',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             // Main content
             Center(
               child: SingleChildScrollView(
@@ -200,12 +162,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         SizedBox(height: 15),
 
                         // Password field
-                        _buildInputField('Password', _passwordController, isPassword: true),
+                        _buildInputField('Password', _passwordController,
+                            isPassword: true),
                         SizedBox(height: 15),
 
                         // Confirm Password field
-                        _buildInputField('Confirm Password', _confirmPasswordController, isPassword: true),
-                        
+                        _buildInputField(
+                            'Confirm Password', _confirmPasswordController,
+                            isPassword: true),
+
                         SizedBox(height: 30),
 
                         // Register button
@@ -224,7 +189,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           child: Column(
                             children: [
-                              Icon(Icons.email_outlined, size: 50, color: Colors.white),
+                              Icon(Icons.email_outlined,
+                                  size: 50, color: Colors.white),
                               SizedBox(height: 15),
                               Text(
                                 'Verify Your Email',
@@ -244,14 +210,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                               SizedBox(height: 20),
-                              
+
                               // Verify button
                               _buildButton(
                                 text: 'I\'ve Verified My Email',
-                                onPressed: loading ? null : _verifyEmailAndRegister,
+                                onPressed:
+                                    loading ? null : _verifyEmailAndRegister,
                                 isLoading: loading,
                               ),
-                              
+
                               SizedBox(height: 15),
                               TextButton(
                                 onPressed: () {
@@ -272,9 +239,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                       ],
-                      
+
                       // Added extra space at the bottom to ensure content doesn't overlap with the bottom text
                       SizedBox(height: 80),
+                      // Already have an account - placed inline like other elements
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Already have an account?",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => LoginPage()),
+                              );
+                            },
+                            child: Text(
+                              'Sign in',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -286,7 +283,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildInputField(String label, TextEditingController controller, {bool isPassword = false}) {
+  Widget _buildInputField(String label, TextEditingController controller,
+      {bool isPassword = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -308,7 +306,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             controller: controller,
             obscureText: isPassword,
             decoration: InputDecoration(
-              hintText: isPassword ? 'password' : label == 'Name' ? 'your name' : 'example@gmail.com',
+              hintText: isPassword
+                  ? 'password'
+                  : label == 'Name'
+                      ? 'your name'
+                      : 'example@gmail.com',
               hintStyle: TextStyle(color: Colors.white70),
               border: InputBorder.none,
               contentPadding:
@@ -321,11 +323,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildButton({
-    required String text,
-    required VoidCallback? onPressed,
-    bool isLoading = false
-  }) {
+  Widget _buildButton(
+      {required String text,
+      required VoidCallback? onPressed,
+      bool isLoading = false}) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -333,7 +334,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           padding: EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
         ),
         child: isLoading
             ? SizedBox(
