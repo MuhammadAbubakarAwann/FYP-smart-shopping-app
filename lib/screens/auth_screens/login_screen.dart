@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/screens/auth_screens/forgot_pass_screen.dart';
+import 'package:flutter_application_1/screens/shopping_list_welcome_screen.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart'; // Make sure this import is present
 import '../../services/user_service.dart';
@@ -9,7 +10,6 @@ import '../../services/user_sync_service.dart';
 import '../../services/payment_service.dart';
 import 'registration_screen.dart';
 import '../payment_details_screen.dart';
-import '../items_selector_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
@@ -77,12 +77,11 @@ Future<void> _navigateAfterLogin(User user) async {
         print('Payment methods found: ${paymentMethods.length} for userId: $userId'); // Debug log
 
         if (paymentMethods.isNotEmpty) {
-          // If payment methods exist, go directly to items selector
-          print('Navigating to ItemsSelectorScreen'); // Debug log
-          Navigator.pushReplacement(
+          print('Navigating to ShoppingListWelcomeScreen'); 
+           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => const ItemsSelectorScreen(),
+              builder: (context) => const ShoppingListWelcomeScreen(),
             ),
           );
         } else {

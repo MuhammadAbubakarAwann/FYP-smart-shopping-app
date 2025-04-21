@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/auth_screens/login_screen.dart';
-import 'items_selector_screen.dart';
 
 class LandingScreen extends StatefulWidget {
   @override

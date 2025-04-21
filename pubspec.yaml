@@ -70,6 +70,7 @@ flutter:
     - assets/logo-light.png
     - assets/google-logo.png
     - assets/easypaisa.png
+    - assets/basket.png
     - .env
 
 

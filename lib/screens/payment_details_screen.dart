@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'items_selector_screen.dart';
 import '../services/payment_service.dart';
 import '../services/user_service.dart';
-import 'package:provider/provider.dart'; // Make sure this import is present
+import 'package:provider/provider.dart';
+import 'shopping_list_welcome_screen.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   const PaymentDetailsScreen({
@@ -119,7 +119,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => const ItemsSelectorScreen(),
+        builder: (context) => const ShoppingListWelcomeScreen(),
       ),
     );
   }

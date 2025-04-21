@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/payment_service.dart';
 import 'package:flutter/services.dart';
@@ -359,7 +358,6 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
-  // Request OTP for payment verification
   Future<void> _requestOtp() async {
     setState(() {
       isProcessingPayment = true;

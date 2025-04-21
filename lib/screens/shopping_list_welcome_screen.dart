@@ -10,34 +10,53 @@ class ShoppingListWelcomeScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Header
+          // Header - matching the ItemsSelectorScreen style
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.only(left: 10, top: 41, bottom: 12),
-            color: Colors.white,
-            alignment: Alignment.centerLeft,
-            child: const Text(
-              'Shopping List',
-              style: TextStyle(
-                fontFamily: 'Sarala',
-                fontWeight: FontWeight.w700,
-                fontSize: 24,
-                color: Color(0xFF8BE0FF),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Shopping List',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF8BE0FF),
+                    ),
+                  ),
+                  // You can add QR code icons here if needed, like in ItemsSelectorScreen
+                ],
               ),
             ),
           ),
           
-          // Main blue container with content
+          // Main blue container with content - expanded to fill the screen
           Expanded(
             child: Container(
               width: double.infinity,
               color: const Color(0xFF0CA8E1),
               child: Stack(
-                alignment: Alignment.center,
+                fit: StackFit.expand, // Make sure the stack fills the container
                 children: [
                   // Center add button
                   Positioned(
-                    top: 129, // Adjusted from design to look better
+                    top: 129,
+                    left: 0,
+                    right: 0,
                     child: GestureDetector(
                       onTap: () => _navigateToItemsSelector(context),
                       child: Column(
@@ -51,7 +70,7 @@ class ShoppingListWelcomeScreen extends StatelessWidget {
                             ),
                             child: const Icon(
                               Icons.add,
-                              size: 30,
+                              size: 50,
                               color: Color(0xFF8BE0FF),
                             ),
                           ),
@@ -59,8 +78,8 @@ class ShoppingListWelcomeScreen extends StatelessWidget {
                           const Text(
                             'Add or search for an item',
                             style: TextStyle(
-                              fontFamily: 'Sarala',
-                              fontSize: 16,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
                               color: Color(0xFF8BE0FF),
                             ),
                           ),
@@ -69,210 +88,30 @@ class ShoppingListWelcomeScreen extends StatelessWidget {
                     ),
                   ),
                   
-                  // Shopping basket image and items
+                  // Shopping basket image - using a single image for all items
                   Positioned(
                     top: 336,
-                    child: SizedBox(
-                      width: 200,
-                      height: 230,
-                      child: Stack(
-                        children: [
-                          // Shopping basket
-                          Positioned(
-                            left: 25,
-                            top: 80,
-                            child: Opacity(
-                              opacity: 0.8,
-                              child: Image.asset(
-                                'assets/images/shopping-basket.png',
-                                width: 148,
-                                height: 148,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  width: 148,
-                                  height: 148,
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber[100],
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
-                                    Icons.shopping_basket,
-                                    size: 80,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                              ),
-                            ),
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Image.asset(
+                        'assets/basket.png',
+                        width: 220,
+                        height: 220,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: Colors.amber[100],
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          
-                          // Milk bottle
-                          Positioned(
-                            right: 10,
-                            top: 75,
-                            child: Transform.rotate(
-                              angle: 2.65, // ~152 degrees
-                              child: Opacity(
-                                opacity: 0.7,
-                                child: Container(
-                                  width: 57,
-                                  height: 85,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.9),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.water_drop,
-                                    color: Colors.blue,
-                                    size: 30,
-                                  ),
-                                ),
-                              ),
-                            ),
+                          child: const Icon(
+                            Icons.shopping_basket,
+                            size: 80,
+                            color: Colors.amber,
                           ),
-                          
-                          // Meat
-                          Positioned(
-                            right: 20,
-                            top: 70,
-                            child: Transform.rotate(
-                              angle: -0.88, // ~-50 degrees
-                              child: Opacity(
-                                opacity: 0.7,
-                                child: Container(
-                                  width: 71,
-                                  height: 35,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red[100],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.restaurant_menu,
-                                    color: Colors.redAccent,
-                                    size: 25,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          // Egg
-                          Positioned(
-                            right: 25,
-                            top: 95,
-                            child: Opacity(
-                              opacity: 0.6,
-                              child: Container(
-                                width: 25,
-                                height: 26,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.egg,
-                                  color: Colors.amber,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          // Broccoli/Vegetable
-                          Positioned(
-                            left: 34,
-                            top: 169,
-                            child: Transform.rotate(
-                              angle: -1.71, // ~-98 degrees
-                              child: Opacity(
-                                opacity: 0.7,
-                                child: Container(
-                                  width: 70,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: Colors.green[100],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.eco,
-                                    color: Colors.green,
-                                    size: 30,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          // Meat/Steak
-                          Positioned(
-                            right: 20,
-                            top: 163,
-                            child: Transform.rotate(
-                              angle: -2.33, // ~-133 degrees
-                              child: Opacity(
-                                opacity: 0.7,
-                                child: Container(
-                                  width: 58,
-                                  height: 58,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red[200],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.lunch_dining,
-                                    color: Colors.redAccent,
-                                    size: 30,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          // Fruit
-                          Positioned(
-                            right: 30,
-                            top: 44,
-                            child: Transform.rotate(
-                              angle: -3.03, // ~-173 degrees
-                              child: Opacity(
-                                opacity: 0.7,
-                                child: Container(
-                                  width: 37,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: Colors.yellow[100],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.apple,
-                                    color: Colors.orange,
-                                    size: 25,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          // Another food item
-                          Positioned(
-                            left: 72,
-                            top: 67,
-                            child: Opacity(
-                              opacity: 0.7,
-                              child: Container(
-                                width: 37,
-                                height: 37,
-                                decoration: BoxDecoration(
-                                  color: Colors.brown[100],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.bakery_dining,
-                                  color: Colors.brown,
-                                  size: 25,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -280,83 +119,92 @@ class ShoppingListWelcomeScreen extends StatelessWidget {
                   // "Let's build your basket" text
                   const Positioned(
                     bottom: 111,
-                    child: Text(
-                      "Let's build your basket",
-                      style: TextStyle(
-                        fontFamily: 'Sarala',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 24,
-                        color: Color(0xFF8BE0FF),
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Text(
+                        "Let's build your basket",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 25,
+                          color: Color(0xFF8BE0FF),
+                        ),
                       ),
                     ),
                   ),
                   
-                  // Bottom buttons
+                  // Bottom buttons - matching ItemsSelectorScreen style and position
                   Positioned(
                     bottom: 16,
-                    left: 6,
-                    right: 6,
+                    left: 16,
+                    right: 16,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         // Show Map button
-                        GestureDetector(
-                          onTap: () => _navigateToARNavigation(context),
+                        TextButton(
+                          onPressed: () => _navigateToARNavigation(context),
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            padding: EdgeInsets.zero,
+                          ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Text(
                                 'Show Map',
                                 style: TextStyle(
-                                  fontFamily: 'Sarala',
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
                                   color: Color(0xFF8BE0FF),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 8),
                               Container(
-                                width: 30,
-                                height: 30,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF8BE0FF),
-                                  borderRadius: BorderRadius.circular(7),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
+                                padding: const EdgeInsets.all(6),
                                 child: const Icon(
                                   Icons.keyboard_arrow_down,
                                   color: Colors.white,
-                                  size: 24,
+                                  size: 18,
                                 ),
                               ),
                             ],
                           ),
                         ),
                         
-                        // Add item button
-                        GestureDetector(
-                          onTap: () => _navigateToItemsSelector(context),
+                        // Add Item button
+                        TextButton(
+                          onPressed: () => _navigateToItemsSelector(context),
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            padding: EdgeInsets.zero,
+                          ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                width: 29,
-                                height: 29,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF8BE0FF),
-                                  borderRadius: BorderRadius.circular(5),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
+                                padding: const EdgeInsets.all(6),
                                 child: const Icon(
                                   Icons.add,
                                   color: Colors.white,
-                                  size: 15,
+                                  size: 18,
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 8),
                               const Text(
                                 'Add item',
                                 style: TextStyle(
-                                  fontFamily: 'Sarala',
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
                                   color: Color(0xFF8BE0FF),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
