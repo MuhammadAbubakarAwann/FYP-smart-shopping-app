@@ -1,9 +1,15 @@
+// At the top of the file, ensure Provider is properly imported
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/screens/auth_screens/forgot_pass_screen.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:provider/provider.dart'; // Make sure this import is present
+import '../../services/user_service.dart';
+import '../../services/user_sync_service.dart';
+import '../../services/payment_service.dart';
 import 'registration_screen.dart';
-import '../payment_details_screen.dart'; // Import the PaymentPage
+import '../payment_details_screen.dart';
+import '../items_selector_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
@@ -17,19 +23,118 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
+// Inside the _navigateAfterLogin method in LoginPage class
+Future<void> _navigateAfterLogin(User user) async {
+  try {
+    // First, synchronize the Firebase user with PostgreSQL database
+    final syncResult = await UserSyncService().syncUserWithDatabase();
+    print('Sync result: $syncResult'); // Debug log to see what's coming back
+
+    if (syncResult['success']) {
+      // Make sure we're getting the userId as an integer
+      int? userId;
+      if (syncResult['userId'] != null) {
+        // Convert to int if it's not already
+        userId = syncResult['userId'] is int 
+            ? syncResult['userId'] 
+            : int.tryParse(syncResult['userId'].toString());
+            
+        print('Extracted userId from sync: $userId'); // Debug log
+      }
+      
+      if (userId == null) {
+        print('Warning: userId is null from sync result'); // Debug log
+        Fluttertoast.showToast(
+          msg: "Could not retrieve user ID from server. Please try again.",
+          toastLength: Toast.LENGTH_SHORT,
+        );
+        return;
+      }
+
+      // Create new UserModel that includes backend userId in additionalData
+      final currentFirebaseUser = FirebaseAuth.instance.currentUser!;
+      final enrichedUser =
+          UserModel.fromFirebaseUser(currentFirebaseUser).copyWith(
+        additionalData: {
+          'userId': userId, // Make sure this is an integer
+          'isAdmin': syncResult['isAdmin'] ?? false,
+        },
+      );
+
+      // Get the UserService from Provider
+      final userService = Provider.of<UserService>(context, listen: false);
+      await userService.setCurrentUser(enrichedUser);
+      
+      // Verify the userId was properly stored
+      print('Stored userId in UserService: ${userService.currentUser?.additionalData['userId']}');
+      
+      // Check if payment methods exist for this user
+      try {
+        print('Checking payment methods for userId: $userId');
+        List<PaymentMethod> paymentMethods =
+            await PaymentService.getPaymentMethods(userId);
+
+        print('Payment methods found: ${paymentMethods.length} for userId: $userId'); // Debug log
+
+        if (paymentMethods.isNotEmpty) {
+          // If payment methods exist, go directly to items selector
+          print('Navigating to ItemsSelectorScreen'); // Debug log
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ItemsSelectorScreen(),
+            ),
+          );
+        } else {
+          // If no payment methods, go to payment details screen with the userId
+          print('Navigating to PaymentDetailsScreen with userId: $userId'); // Debug log
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentDetailsScreen(userId: userId),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error checking payment methods: $e');
+        // Default to payment details screen if there's an error
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentDetailsScreen(userId: userId),
+          ),
+        );
+      }
+    } else {
+      print('User sync failed: ${syncResult['error'] ?? 'Unknown error'}');
+      Fluttertoast.showToast(
+        msg: "Failed to sync user data. Please try again.",
+        toastLength: Toast.LENGTH_SHORT,
+      );
+    }
+  } catch (e) {
+    print('Error navigating after login: $e');
+    Fluttertoast.showToast(
+      msg: "Error during login process. Please try again.",
+      toastLength: Toast.LENGTH_SHORT,
+    );
+  }
+}
+
+
   Future<void> _login() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      await _auth.signInWithEmailAndPassword(
+      final userCredential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       // Check if email is verified
-      User? user = _auth.currentUser;
+      User? user = userCredential.user;
       if (user != null && !user.emailVerified) {
         await _auth.signOut();
         Fluttertoast.showToast(
@@ -41,13 +146,19 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
+      // Save user data to UserService if available
+      try {
+        final userService = Provider.of<UserService>(context, listen: false);
+        await userService.setCurrentUser(UserModel.fromFirebaseUser(user!));
+      } catch (e) {
+        print('Error saving user data: $e');
+        // Continue even if UserService is not available
+      }
+
       Fluttertoast.showToast(msg: 'Login Successful!');
 
-      // Navigate to PaymentScreen after successful login
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => PaymentDetailsScreen()),
-      );
+      // Navigate based on payment details
+      await _navigateAfterLogin(user!);
     } catch (e) {
       Fluttertoast.showToast(
           msg: 'Error: ${e.toString().split(']').last.trim()}');
@@ -67,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
       final GoogleSignIn googleSignIn = GoogleSignIn();
 
       // Force the account picker by signing out first
-      await googleSignIn.signOut(); // 👈 This is key
+      await googleSignIn.signOut();
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
@@ -91,12 +202,19 @@ class _LoginPageState extends State<LoginPage> {
       final User? user = userCredential.user;
 
       if (user != null) {
+        // Save user data to UserService if available
+        try {
+          final userService = Provider.of<UserService>(context, listen: false);
+          await userService.setCurrentUser(UserModel.fromFirebaseUser(user));
+        } catch (e) {
+          print('Error saving user data: $e');
+          // Continue even if UserService is not available
+        }
+
         Fluttertoast.showToast(msg: 'Google Sign-In Successful!');
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => PaymentDetailsScreen()),
-        );
+        // Navigate based on payment details
+        await _navigateAfterLogin(user);
       }
     } catch (e) {
       Fluttertoast.showToast(
@@ -221,9 +339,7 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
 
-                      SizedBox(
-                          height:
-                              20), 
+                      SizedBox(height: 20),
                     ],
                   ),
                 ),

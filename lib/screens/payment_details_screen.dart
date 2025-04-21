@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'items_selector_screen.dart';
 import '../services/payment_service.dart';
+import '../services/user_service.dart';
+import 'package:provider/provider.dart'; // Make sure this import is present
 
 class PaymentDetailsScreen extends StatefulWidget {
-  final int userId;
-  
   const PaymentDetailsScreen({
-    Key? key, 
-    this.userId = 1, // Default user ID for testing
+    Key? key,
+    this.userId,
   }) : super(key: key);
+
+  final int? userId;
 
   @override
   _PaymentDetailsScreenState createState() => _PaymentDetailsScreenState();
@@ -22,6 +24,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   bool _isCardValid = false;
   bool _isExpiryValid = false;
   bool _isCvvValid = false;
+  int? _userId;
 
   final _cardNumberController = TextEditingController();
   final _expiryDateController = TextEditingController();
@@ -30,22 +33,70 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Add listeners to validate input as user types
     _cardNumberController.addListener(_validateCard);
     _expiryDateController.addListener(_validateExpiry);
     _cvvController.addListener(_validateCvv);
+
+    // Get userId in initState to avoid context issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeUserId();
+    });
+  }
+
+  // Update the _initializeUserId method
+  Future<void> _initializeUserId() async {
+    // First check if userId was passed directly
+    if (widget.userId != null) {
+      setState(() {
+        _userId = widget.userId;
+      });
+      print('Using provided userId: $_userId');
+      return;
+    }
+
+    // Try to get from UserService using Provider
+    try {
+      final userService = Provider.of<UserService>(context, listen: false);
+      final userId = userService.currentUser?.additionalData['userId'];
+      
+      // Ensure userId is an integer
+      int? parsedUserId;
+      if (userId != null) {
+        parsedUserId = userId is int ? userId : int.tryParse(userId.toString());
+      }
+      
+      setState(() {
+        _userId = parsedUserId;
+      });
+      
+      print('Retrieved userId from UserService: $_userId (original value: $userId)');
+      
+      if (_userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User ID not found. Please log in again.')),
+        );
+      }
+    } catch (e) {
+      print('Error getting userId from UserService: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
 
   void _validateCard() {
     setState(() {
-      _isCardValid = PaymentService.validateCardNumber(_cardNumberController.text);
+      _isCardValid =
+          PaymentService.validateCardNumber(_cardNumberController.text);
     });
   }
 
   void _validateExpiry() {
     setState(() {
-      _isExpiryValid = PaymentService.validateExpiryDate(_expiryDateController.text);
+      _isExpiryValid =
+          PaymentService.validateExpiryDate(_expiryDateController.text);
     });
   }
 
@@ -67,19 +118,53 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   void _navigateToItemsSelector() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const ItemsSelectorScreen()),
+      MaterialPageRoute(
+        builder: (context) => const ItemsSelectorScreen(),
+      ),
     );
   }
 
-  // Process payment details and save to DB
+  // Update the _processPayment method
   Future<void> _processPayment() async {
     // Validate all fields first
-    if (_selectedPaymentMethod == 'card' && 
+    if (_selectedPaymentMethod == 'card' &&
         (!_isCardValid || !_isExpiryValid || !_isCvvValid)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter valid card details')),
       );
       return;
+    }
+
+    // Check if userId is available
+    if (_userId == null) {
+      // Try one more time to get the userId using Provider
+      try {
+        final userService = Provider.of<UserService>(context, listen: false);
+        final userId = userService.currentUser?.additionalData['userId'];
+        
+        // Ensure userId is an integer
+        int? parsedUserId;
+        if (userId != null) {
+          parsedUserId = userId is int ? userId : int.tryParse(userId.toString());
+          
+          if (parsedUserId != null) {
+            setState(() {
+              _userId = parsedUserId;
+            });
+            print('Retrieved userId at payment time: $_userId');
+          }
+        }
+      } catch (e) {
+        print('Error getting userId at payment time: $e');
+      }
+      
+      // If still null, show error
+      if (_userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User ID not found. Please log in again.')),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -88,23 +173,36 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
     try {
       if (_selectedPaymentMethod == 'card') {
+        print('Processing payment for userId: $_userId'); // Debug log
+
         // Save card details to database
-        await PaymentService.savePaymentMethod(
-          userId: widget.userId,
+        final response = await PaymentService.savePaymentMethod(
+          userId: _userId!,
           cardNumber: _cardNumberController.text,
           expiryDate: _expiryDateController.text,
           cvv: _cvvController.text,
           country: _selectedCountry,
         );
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment details saved successfully')),
-        );
+
+        print('Payment method save response: $response'); // Debug log
+
+        if (response['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment details saved successfully')),
+          );
+
+          // Navigate to items selector screen
+          _navigateToItemsSelector();
+        } else {
+          throw Exception(
+              response['error'] ?? 'Failed to save payment details');
+        }
+      } else {
+        // For other payment methods, just navigate to items selector
+        _navigateToItemsSelector();
       }
-      
-      // Navigate to items selector screen
-      _navigateToItemsSelector();
     } catch (e) {
+      print('Error in _processPayment: $e'); // Debug log
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
@@ -115,6 +213,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     }
   }
 
+  // Rest of your code remains the same...
+  // (I'm not including the rest of the UI code to keep this response focused on the fix)
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,7 +225,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Payment- Details',
+          'Payment Details',
           style: TextStyle(
             fontSize: 22,
             color: Color(0xFF8BE0FF),
@@ -133,7 +234,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: _navigateToItemsSelector, // Skip button now navigates to items selector
+            onPressed:
+                _navigateToItemsSelector, // Skip button now navigates to items selector
             child: const Text(
               'Skip',
               style: TextStyle(
@@ -152,7 +254,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             const Text(
               'Payment method',
               style: TextStyle(
-                fontSize: 16, 
+                fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: Colors.black87,
               ),
@@ -192,18 +294,21 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   ),
                 ),
                 child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "Proceed",
+                        style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
                       ),
-                    )
-                  : const Text(
-                      "Proceed",
-                      style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
               ),
             ),
             const SizedBox(height: 20),
@@ -222,7 +327,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     Color iconColor = const Color(0xFF0CA8E1),
   }) {
     bool isSelected = _selectedPaymentMethod == value;
-    
+
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: const Color(0xFF0CA8E1), width: 1),
@@ -246,16 +351,18 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   Icon(icon, size: 24, color: iconColor)
                 else if (iconAsset != null)
                   Image.asset(
-                    iconAsset, 
+                    iconAsset,
                     height: 24,
-                    errorBuilder: (context, error, stackTrace) => 
-                      Icon(iconFallback ?? Icons.payment, size: 24, color: iconColor),
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                        iconFallback ?? Icons.payment,
+                        size: 24,
+                        color: iconColor),
                   )
                 else if (iconFallback != null)
                   Icon(iconFallback, size: 24, color: iconColor),
                 const SizedBox(width: 12),
                 Text(
-                  label, 
+                  label,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -265,7 +372,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             ),
             activeColor: const Color(0xFF0CA8E1),
           ),
-          
+
           // Expanded content for selected payment method
           if (isSelected && value == 'card')
             Padding(
@@ -293,7 +400,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         const SizedBox(height: 8),
         _buildCardNumberField(),
         const SizedBox(height: 16),
-        
+
         // Expiry date and CVV row
         Row(
           children: [
@@ -316,7 +423,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               ),
             ),
             const SizedBox(width: 16),
-            
+
             // Security code field
             Expanded(
               child: Column(
@@ -338,7 +445,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Country dropdown
         _buildCountryDropdown(),
       ],
@@ -357,19 +464,22 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: _isCardValid || _cardNumberController.text.isEmpty 
-              ? Colors.grey 
-              : Colors.red),
+          borderSide: BorderSide(
+              color: _isCardValid || _cardNumberController.text.isEmpty
+                  ? Colors.grey
+                  : Colors.red),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: _isCardValid || _cardNumberController.text.isEmpty 
-              ? const Color(0xFF0CA8E1) 
-              : Colors.red),
+          borderSide: BorderSide(
+              color: _isCardValid || _cardNumberController.text.isEmpty
+                  ? const Color(0xFF0CA8E1)
+                  : Colors.red),
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        errorText: _cardNumberController.text.isNotEmpty && !_isCardValid 
-            ? 'Invalid card number' 
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        errorText: _cardNumberController.text.isNotEmpty && !_isCardValid
+            ? 'Invalid card number'
             : null,
       ),
       keyboardType: TextInputType.number,
@@ -386,26 +496,30 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       controller: _expiryDateController,
       decoration: InputDecoration(
         hintText: 'MM / YY',
-        prefixIcon: const Icon(Icons.calendar_today, color: Colors.grey, size: 20),
+        prefixIcon:
+            const Icon(Icons.calendar_today, color: Colors.grey, size: 20),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Colors.grey),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: _isExpiryValid || _expiryDateController.text.isEmpty 
-              ? Colors.grey 
-              : Colors.red),
+          borderSide: BorderSide(
+              color: _isExpiryValid || _expiryDateController.text.isEmpty
+                  ? Colors.grey
+                  : Colors.red),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: _isExpiryValid || _expiryDateController.text.isEmpty 
-              ? const Color(0xFF0CA8E1) 
-              : Colors.red),
+          borderSide: BorderSide(
+              color: _isExpiryValid || _expiryDateController.text.isEmpty
+                  ? const Color(0xFF0CA8E1)
+                  : Colors.red),
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        errorText: _expiryDateController.text.isNotEmpty && !_isExpiryValid 
-            ? 'Invalid expiry date' 
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        errorText: _expiryDateController.text.isNotEmpty && !_isExpiryValid
+            ? 'Invalid expiry date'
             : null,
       ),
       keyboardType: TextInputType.datetime,
@@ -429,19 +543,22 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: _isCvvValid || _cvvController.text.isEmpty 
-              ? Colors.grey 
-              : Colors.red),
+          borderSide: BorderSide(
+              color: _isCvvValid || _cvvController.text.isEmpty
+                  ? Colors.grey
+                  : Colors.red),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: _isCvvValid || _cvvController.text.isEmpty 
-              ? const Color(0xFF0CA8E1) 
-              : Colors.red),
+          borderSide: BorderSide(
+              color: _isCvvValid || _cvvController.text.isEmpty
+                  ? const Color(0xFF0CA8E1)
+                  : Colors.red),
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        errorText: _cvvController.text.isNotEmpty && !_isCvvValid 
-            ? 'Invalid CVV' 
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        errorText: _cvvController.text.isNotEmpty && !_isCvvValid
+            ? 'Invalid CVV'
             : null,
       ),
       keyboardType: TextInputType.number,
@@ -491,10 +608,10 @@ class _CardNumberFormatter extends TextInputFormatter {
     if (newValue.text.isEmpty) {
       return newValue;
     }
-    
+
     // Remove all non-digits
     String text = newValue.text.replaceAll(RegExp(r'\D'), '');
-    
+
     // Add a space after every 4 digits
     StringBuffer buffer = StringBuffer();
     for (int i = 0; i < text.length; i++) {
@@ -503,7 +620,7 @@ class _CardNumberFormatter extends TextInputFormatter {
         buffer.write(' ');
       }
     }
-    
+
     return TextEditingValue(
       text: buffer.toString(),
       selection: TextSelection.collapsed(offset: buffer.length),
@@ -521,15 +638,15 @@ class _ExpiryDateFormatter extends TextInputFormatter {
     if (newValue.text.isEmpty) {
       return newValue;
     }
-    
+
     // Remove all non-digits
     String text = newValue.text.replaceAll(RegExp(r'\D'), '');
-    
+
     // Add a slash after 2 digits
     if (text.length >= 2) {
       text = '${text.substring(0, 2)}/${text.substring(2)}';
     }
-    
+
     return TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: text.length),

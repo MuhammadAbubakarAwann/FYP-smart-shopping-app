@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:provider/provider.dart';
+import '../../services/user_service.dart';
+import '../../services/user_sync_service.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -24,9 +27,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
+    final name = _nameController.text.trim();
 
     // Basic validation
-    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       Fluttertoast.showToast(msg: "Please fill all fields");
       return;
     }
@@ -52,8 +56,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final userCredential = await _auth.createUserWithEmailAndPassword(
           email: email, password: password);
 
+      // Update user profile with name
+      await userCredential.user!.updateDisplayName(name);
+
       // Send email verification
       await userCredential.user!.sendEmailVerification();
+
+      // Save user data to UserService
+      try {
+        final userService = Provider.of<UserService>(context, listen: false);
+        final userModel = UserModel.fromFirebaseUser(userCredential.user!);
+        await userService.setCurrentUser(userModel);
+      } catch (e) {
+        print('Error saving user data: $e');
+      }
+
+      // Try to create user in PostgreSQL database
+      try {
+        await UserSyncService().syncUserWithDatabase();
+      } catch (e) {
+        print('Error syncing user with database: $e');
+        // Continue anyway, we'll try again on login
+      }
 
       // Sign out immediately - user will need to verify email before logging in
       await _auth.signOut();
@@ -94,6 +118,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user != null && user.emailVerified) {
         // Email is verified, update user profile with name
         await user.updateDisplayName(_nameController.text.trim());
+
+        // Save user data to UserService
+        try {
+          final userService = Provider.of<UserService>(context, listen: false);
+          final userModel = UserModel.fromFirebaseUser(user);
+          await userService.setCurrentUser(userModel);
+        } catch (e) {
+          print('Error saving user data: $e');
+        }
+
+        // Try to create user in PostgreSQL database
+        try {
+          await UserSyncService().syncUserWithDatabase();
+        } catch (e) {
+          print('Error syncing user with database: $e');
+          // Continue anyway, we'll try again on login
+        }
 
         Fluttertoast.showToast(msg: "Registration Successful!");
 

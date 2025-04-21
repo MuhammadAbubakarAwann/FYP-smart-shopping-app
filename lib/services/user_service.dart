@@ -100,7 +100,7 @@ class UserService extends ChangeNotifier {
     try {
       // Try to load user from shared preferences
       await _loadUserFromPrefs();
-      
+
       // Check if Firebase has a current user
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
@@ -116,21 +116,32 @@ class UserService extends ChangeNotifier {
     }
   }
 
-  // Set current user
+// Update the setCurrentUser method
   Future<void> setCurrentUser(UserModel user) async {
     _currentUser = user;
+
+    // Debug log to verify the user data
+    print('Setting current user: ${user.uid}');
+    print('User additionalData: ${user.additionalData}');
+
     await _saveUserToPrefs(user);
     notifyListeners();
   }
 
-  // Update user data
   Future<void> updateUserData(Map<String, dynamic> data) async {
     if (_currentUser == null) return;
-    
+
+    // Debug log to see what data is being updated
+    print('Updating user data: $data');
+    print('Current additionalData: ${_currentUser!.additionalData}');
+
     final updatedUser = _currentUser!.copyWith(
       additionalData: {..._currentUser!.additionalData, ...data},
     );
-    
+
+    // Debug log to see the updated data
+    print('Updated additionalData: ${updatedUser.additionalData}');
+
     await setCurrentUser(updatedUser);
   }
 
@@ -153,7 +164,7 @@ class UserService extends ChangeNotifier {
   Future<void> _loadUserFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final userData = prefs.getString('user_data');
-    
+
     if (userData != null) {
       try {
         final userMap = jsonDecode(userData) as Map<String, dynamic>;
@@ -180,24 +191,24 @@ class UserService extends ChangeNotifier {
   // Refresh user data from Firebase
   Future<void> refreshUserData() async {
     if (_currentUser == null) return;
-    
+
     _isLoading = true;
     notifyListeners();
-    
+
     try {
       // Reload Firebase user
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
         await firebaseUser.reload();
-        
+
         // Update current user with fresh data
         final refreshedUser = UserModel.fromFirebaseUser(firebaseUser);
-        
+
         // Preserve additional data
         final updatedUser = refreshedUser.copyWith(
           additionalData: _currentUser!.additionalData,
         );
-        
+
         await setCurrentUser(updatedUser);
       }
     } catch (e) {
