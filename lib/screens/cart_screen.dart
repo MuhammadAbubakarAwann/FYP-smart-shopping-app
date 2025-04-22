@@ -75,11 +75,11 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Get the user ID from UserService
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userService = Provider.of<UserService>(context, listen: false);
-      if (userService.currentUser != null && 
+      if (userService.currentUser != null &&
           userService.currentUser!.additionalData.containsKey('userId')) {
         userId = userService.currentUser!.additionalData['userId'];
         print('Using user ID: $userId from UserService');
@@ -88,7 +88,7 @@ class _CartScreenState extends State<CartScreen> {
         userId = 1;
         print('UserService user ID not found, using default: $userId');
       }
-      
+
       // Now that we have the userId, load cart items and payment methods
       _loadCartItems();
       _loadPaymentMethods();
@@ -139,7 +139,8 @@ class _CartScreenState extends State<CartScreen> {
   Future<void> _loadCartFromLocalStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cartData = prefs.getString('cart_items_$userId'); // Use user-specific key
+      final cartData =
+          prefs.getString('cart_items_$userId'); // Use user-specific key
 
       if (cartData != null) {
         final List<dynamic> decodedData = json.decode(cartData);
@@ -147,7 +148,8 @@ class _CartScreenState extends State<CartScreen> {
           cartItems =
               decodedData.map((item) => Product.fromJson(item)).toList();
         });
-        print('Loaded ${cartItems.length} items from local storage for user $userId');
+        print(
+            'Loaded ${cartItems.length} items from local storage for user $userId');
       }
     } catch (e) {
       print('Error loading from local storage: $e');
@@ -186,7 +188,8 @@ class _CartScreenState extends State<CartScreen> {
           // Save to local storage for offline access
           _saveCartToLocalStorage();
 
-          print('Loaded ${cartItems.length} items from server for user $userId');
+          print(
+              'Loaded ${cartItems.length} items from server for user $userId');
         }
       } else {
         print('Server error: ${response.statusCode}');
@@ -214,7 +217,8 @@ class _CartScreenState extends State<CartScreen> {
       final prefs = await SharedPreferences.getInstance();
       final cartData =
           json.encode(cartItems.map((item) => item.toJson()).toList());
-      await prefs.setString('cart_items_$userId', cartData); // Use user-specific key
+      await prefs.setString(
+          'cart_items_$userId', cartData); // Use user-specific key
       print('Saved cart to local storage for user $userId');
     } catch (e) {
       print('Error saving to local storage: $e');
@@ -480,8 +484,7 @@ class _CartScreenState extends State<CartScreen> {
               });
 
               try {
-                final result =
-                    await PaymentService.verifyOtp(userId, otp);
+                final result = await PaymentService.verifyOtp(userId, otp);
 
                 if (result['success'] == true) {
                   // OTP verified successfully
@@ -554,7 +557,6 @@ class _CartScreenState extends State<CartScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           color: Color.fromARGB(223, 12, 168, 225),
-
                         ),
                       ),
                       const SizedBox(height: 30),
@@ -569,7 +571,8 @@ class _CartScreenState extends State<CartScreen> {
                             height: 42,
                             margin: const EdgeInsets.symmetric(horizontal: 3),
                             decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.2),
+                              color: const Color.fromARGB(255, 255, 255, 255)
+                                  .withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: focusNodes[index].hasFocus
@@ -996,9 +999,6 @@ class _CartScreenState extends State<CartScreen> {
     });
 
     try {
-      // Calculate total amount
-      final double totalAmount = _calculateTotal;
-
       // Process the checkout on the server
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.post(
@@ -1029,7 +1029,7 @@ class _CartScreenState extends State<CartScreen> {
 
         // Clear local storage
         _saveCartToLocalStorage();
-        
+
         // Clear shopping list from local storage
         await ShoppingListService.clearShoppingList();
       } else {

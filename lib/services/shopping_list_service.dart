@@ -4,8 +4,6 @@ import '../services/user_service.dart';
 
 class ShoppingListService {
   static const String _baseStorageKey = 'shopping_list';
-  static const String _recentItemsKey = 'recent_items';
-  static const String _itemsKey = 'all_items';
 
   // Get user-specific storage key
   static Future<String> _getUserStorageKey() async {
@@ -97,6 +95,7 @@ class ShoppingListService {
 
     // Save the updated list
     await saveShoppingList(currentList);
+    
     print('Updated item: ${currentList[existingItemIndex]}');
 
     // Return the updated list so the UI can be updated immediately

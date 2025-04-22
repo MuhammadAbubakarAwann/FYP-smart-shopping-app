@@ -5,14 +5,16 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class StripeService {
-  static String get apiBaseUrl => dotenv.env['API_URL'] ?? 'http://192.168.18.35:5000';
-  static String get publishableKey => dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
+  static String get apiBaseUrl =>
+      dotenv.env['API_URL'] ?? 'http://192.168.18.35:5000';
+  static String get publishableKey =>
+      dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
 
   // Create a SetupIntent on the server
   static Future<Map<String, dynamic>> createSetupIntent(int userId) async {
     try {
       debugPrint('Creating setup intent for user $userId');
-      
+
       // For testing, return a mock response if the API URL is not set
       if (apiBaseUrl.isEmpty) {
         debugPrint('API URL is empty, returning mock response');
@@ -22,7 +24,7 @@ class StripeService {
           'customerId': 'cus_mock_customer_id',
         };
       }
-      
+
       final response = await http.post(
         Uri.parse('$apiBaseUrl/api/payment/create-setup-intent'),
         headers: {'Content-Type': 'application/json'},
@@ -32,7 +34,7 @@ class StripeService {
       );
 
       debugPrint('Setup intent response status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         debugPrint('Setup intent created successfully');
@@ -50,14 +52,16 @@ class StripeService {
   // Confirm the SetupIntent with the card details
   static Future<String> confirmSetupIntent(String clientSecret) async {
     try {
-      debugPrint('Confirming setup intent with client secret: ${clientSecret.substring(0, 10)}...');
-      
+      debugPrint(
+          'Confirming setup intent with client secret: ${clientSecret.substring(0, 10)}...');
+
       // For testing, return a mock payment method ID if the client secret is a mock
       if (clientSecret == 'seti_mock_secret_for_testing') {
-        debugPrint('Using mock client secret, returning mock payment method ID');
+        debugPrint(
+            'Using mock client secret, returning mock payment method ID');
         return 'pm_mock_payment_method_id';
       }
-      
+
       // Confirm the setup intent with the card
       final result = await Stripe.instance.confirmSetupIntent(
         paymentIntentClientSecret: clientSecret,
@@ -67,15 +71,17 @@ class StripeService {
       );
 
       debugPrint('Setup intent confirmation result status: ${result.status}');
-      
+
       // Return the payment method ID from the setup intent
       if (result.status == 'succeeded') {
-        final paymentMethodId = result.paymentMethodId ?? '';
+        final paymentMethodId = result.paymentMethodId;
         debugPrint('Payment method ID: ${paymentMethodId.substring(0, 5)}...');
         return paymentMethodId;
       } else {
-        debugPrint('Setup intent confirmation failed with status: ${result.status}');
-        throw Exception('Setup intent confirmation failed with status: ${result.status}');
+        debugPrint(
+            'Setup intent confirmation failed with status: ${result.status}');
+        throw Exception(
+            'Setup intent confirmation failed with status: ${result.status}');
       }
     } catch (e) {
       debugPrint('Error confirming setup intent: $e');
@@ -91,13 +97,13 @@ class StripeService {
   }) async {
     try {
       debugPrint('Saving payment method for user $userId');
-      
+
       // Validate inputs
       if (cardDetails == null) {
         debugPrint('Card details are null');
         throw Exception('Card details cannot be null');
       }
-      
+
       // For testing, return a mock response if the API URL is not set
       if (apiBaseUrl.isEmpty) {
         debugPrint('API URL is empty, returning mock response');
@@ -112,7 +118,7 @@ class StripeService {
           },
         };
       }
-      
+
       // Send to backend
       final response = await http.post(
         Uri.parse('$apiBaseUrl/api/payment/save-payment-method'),
@@ -124,13 +130,13 @@ class StripeService {
           'brand': cardDetails.brand ?? 'unknown',
           'expiryMonth': cardDetails.expiryMonth ?? 12,
           'expiryYear': cardDetails.expiryYear ?? 2030,
-          'country':  'US',
+          'country': 'US',
           'isDefault': true,
         }),
       );
 
       debugPrint('Save payment method response status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         debugPrint('Payment method saved successfully');
@@ -153,7 +159,7 @@ class StripeService {
   }) async {
     try {
       debugPrint('Processing payment for user $userId, amount: $amount');
-      
+
       // For testing, return a mock response if the API URL is not set
       if (apiBaseUrl.isEmpty) {
         debugPrint('API URL is empty, returning mock response');
@@ -168,7 +174,7 @@ class StripeService {
           },
         };
       }
-      
+
       final response = await http.post(
         Uri.parse('$apiBaseUrl/api/payment/$userId/process-payment'),
         headers: {'Content-Type': 'application/json'},
@@ -177,16 +183,19 @@ class StripeService {
           'paymentMethodId': paymentMethodId,
         }),
       );
-      
+
       debugPrint('Process payment response status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         debugPrint('Payment processed successfully');
         return data;
       } else {
         debugPrint('Failed to process payment: ${response.body}');
-        return {'success': false, 'error': 'Payment processing failed: ${response.body}'};
+        return {
+          'success': false,
+          'error': 'Payment processing failed: ${response.body}'
+        };
       }
     } catch (e) {
       debugPrint('Error processing payment: $e');

@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
 import '../services/user_service.dart';
 
 class UserSyncService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final String apiBaseUrl = 'http://192.168.18.35:5000'; // Use your actual API URL
-  final UserService _userService = UserService(); // Use the singleton directly
+  final String apiBaseUrl = 'http://192.168.18.35:5000'; 
+  final UserService _userService = UserService(); 
 
   // Sync Firebase user with backend database
   Future<Map<String, dynamic>> syncUserWithDatabase() async {

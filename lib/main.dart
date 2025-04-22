@@ -4,13 +4,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/user_service.dart';
 import 'package:provider/provider.dart';
 
-import 'firebase_options.dart'; // Make sure this is generated via `flutterfire configure`
+import 'firebase_options.dart'; 
 import 'screens/landing_screen.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Required for async operations
+  WidgetsFlutterBinding.ensureInitialized(); 
 
-  // Load environment variables
   await dotenv.load(fileName: ".env");
   
   // Initialize Firebase
