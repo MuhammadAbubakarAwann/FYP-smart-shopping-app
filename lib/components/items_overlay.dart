@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../services/config_service.dart';
 import '../services/shopping_list_service.dart';
+import '../services/user_service.dart';
 
 // Update the ItemsOverlay class to include a callback for when an item is added
 class ItemsOverlay extends StatefulWidget {
@@ -23,11 +25,28 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
   bool showRecentItemsOverlay = false;
   TextEditingController searchController = TextEditingController();
   bool isLoading = true;
+  late int userId; // Will be set from UserService
 
   @override
   void initState() {
     super.initState();
-    fetchRecentItems();
+    
+    // Get the user ID from UserService
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userService = Provider.of<UserService>(context, listen: false);
+      if (userService.currentUser != null && 
+          userService.currentUser!.additionalData.containsKey('userId')) {
+        userId = userService.currentUser!.additionalData['userId'];
+        print('Using user ID: $userId from UserService in ItemsOverlay');
+      } else {
+        // Fallback to default if not available
+        userId = 1;
+        print('UserService user ID not found in ItemsOverlay, using default: $userId');
+      }
+      
+      // Now that we have the userId, fetch recent items
+      fetchRecentItems();
+    });
   }
 
   Future<void> fetchRecentItems() async {
@@ -191,90 +210,94 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(30)),
                   ),
-                  child: isLoading 
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF0CA8E1)))
-                    : ListView(
-                      children: [
-                        _buildCategorySection('Top up', [
-                          _ItemCard(
-                            icon: '🍎', 
-                            label: 'Fruits',
-                            onTap: () => _addItemToShoppingList("6", "Apple", true),
-                          ),
-                          _ItemCard(
-                            icon: '🏠', 
-                            label: 'Sugar',
-                            onTap: () => _addItemToShoppingList("9", "Sugar", true),
-                          ),
-                          _ItemCard(
-                            icon: '🥗', 
-                            label: 'Salad',
-                            onTap: () => _addItemToShoppingList("8", "Salad", true),
-                          ),
-                        ]),
-                        const SizedBox(height: 20),
-                        _buildCategorySection('Bread and dairy', [
-                          _ItemCard(
-                            icon: '🥛', 
-                            label: 'Milk',
-                            onTap: () => _addItemToShoppingList("1", "Semi skimmed Milk", true),
-                          ),
-                          _ItemCard(
-                            icon: '🍞', 
-                            label: 'Bread',
-                            onTap: () => _addItemToShoppingList("7", "Bread", true),
-                          ),
-                          _ItemCard(
-                            icon: '🧀', 
-                            label: 'Cheese',
-                            onTap: () => _addItemToShoppingList("5", "Cheese", true),
-                          ),
-                        ]),
-                        const SizedBox(height: 45),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 16, bottom: 16),
-                          child: Align(
-                            alignment: Alignment.bottomRight,
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              style: TextButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                padding: EdgeInsets.zero,
+                  child: Stack(
+                    children: [
+                      isLoading 
+                        ? const Center(child: CircularProgressIndicator(color: Color(0xFF0CA8E1)))
+                        : ListView(
+                          children: [
+                            _buildCategorySection('Top up', [
+                              _ItemCard(
+                                icon: '🍎', 
+                                label: 'Fruits',
+                                onTap: () => _addItemToShoppingList("6", "Apple", true),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF8BE0FF),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    padding: const EdgeInsets.all(6),
-                                    child: const Icon(
-                                      Icons.close,
-                                      color: Colors.white,
-                                      size: 18,
-                                      weight: 900,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Cancel',
-                                    style: TextStyle(
-                                      color: Color(0xFF8BE0FF),
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                              _ItemCard(
+                                icon: '🏠', 
+                                label: 'Sugar',
+                                onTap: () => _addItemToShoppingList("9", "Sugar", true),
                               ),
-                            ),
+                              _ItemCard(
+                                icon: '🥗', 
+                                label: 'Salad',
+                                onTap: () => _addItemToShoppingList("8", "Salad", true),
+                              ),
+                            ]),
+                            const SizedBox(height: 20),
+                            _buildCategorySection('Bread and dairy', [
+                              _ItemCard(
+                                icon: '🥛', 
+                                label: 'Milk',
+                                onTap: () => _addItemToShoppingList("1", "Semi skimmed Milk", true),
+                              ),
+                              _ItemCard(
+                                icon: '🍞', 
+                                label: 'Bread',
+                                onTap: () => _addItemToShoppingList("7", "Bread", true),
+                              ),
+                              _ItemCard(
+                                icon: '🧀', 
+                                label: 'Cheese',
+                                onTap: () => _addItemToShoppingList("5", "Cheese", true),
+                              ),
+                            ]),
+                            const SizedBox(height: 45),
+                          ],
+                        ),
+                      
+                      // Cancel button properly positioned at the bottom right
+                      Positioned(
+                        bottom: 16,
+                        right: 16,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8BE0FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                padding: const EdgeInsets.all(6),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 18,
+                                  weight: 900,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: Color(0xFF8BE0FF),
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -293,6 +316,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
                 Navigator.pop(context);
               },
               onItemAddedWithData: widget.onItemAdded,
+              userId: userId, // Pass the user ID to the overlay
               isLoading: isLoading,
             ),
           ),
@@ -362,12 +386,14 @@ class _RecentItemsOverlay extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onItemAdded;
   final Function(Map<String, dynamic>)? onItemAddedWithData;
+  final int userId; // Add user ID parameter
   final bool isLoading;
 
   const _RecentItemsOverlay({
     required this.items, 
     required this.onClose,
     required this.onItemAdded,
+    required this.userId, // Require user ID
     this.onItemAddedWithData,
     this.isLoading = false,
   });
@@ -443,7 +469,7 @@ class _RecentItemsOverlay extends StatelessWidget {
       onItemAddedWithData!(newItem);
     }
     
-    print("Item added locally: $itemName");
+    print("Item added locally for user $userId: $itemName");
     onItemAdded();
   }
 }

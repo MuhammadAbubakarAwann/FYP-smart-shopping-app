@@ -183,7 +183,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
           });
           
           // Then update storage
-          ShoppingListService.addItem(newItem);
+          ShoppingListService.updateStatus(newItem);
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -195,7 +195,7 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
           print('Product details:');
           print('ID: ${product.id}');
           print('Name: ${product.name}');
-          print('Price: \$${product.price.toStringAsFixed(2)}');
+          print('Price: \${product.price.toStringAsFixed(2)}');
         },
       ),
     );
@@ -389,9 +389,12 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           decoration: BoxDecoration(
                             color: inCart 
-                              ? const Color(0xFFE1FFE8) // Light green for items in cart
+                              ? const Color(0xFFE8F5E9) // Slightly different green shade for items in cart
                               : const Color(0xFFE1F7FF), // Original color for items not in cart
                             borderRadius: BorderRadius.circular(8),
+                            border: inCart
+                              ? Border.all(color: Colors.green.withOpacity(0.3), width: 1.5)
+                              : null,
                           ),
                           child: Row(
                             children: [
@@ -400,25 +403,24 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
                                 padding: const EdgeInsets.only(left: 8.0),
                                 child: InkWell(
                                   onTap: () => toggleItemInCart(item['id']),
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      color: inCart ? const Color(0xFF0CA8E1) : Colors.white,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: const Color(0xFF0CA8E1),
-                                        width: 2,
+                                  child: inCart
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        size: 24,
+                                        color: Colors.green,
+                                      )
+                                    : Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.grey.withOpacity(0.5),
+                                            width: 2,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    child: inCart
-                                        ? const Icon(
-                                            Icons.check,
-                                            size: 18,
-                                            color: Colors.white,
-                                          )
-                                        : null,
-                                  ),
                                 ),
                               ),
                               
@@ -430,8 +432,8 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
                                     item['name'],
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: Colors.black87,
-                                      decoration: inCart ? TextDecoration.lineThrough : null,
+                                      color: inCart ? Colors.green.shade700 : Colors.black87,
+                                      fontWeight: inCart ? FontWeight.bold : FontWeight.normal,
                                     ),
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(
@@ -529,7 +531,10 @@ class _ItemsSelectorScreenState extends State<ItemsSelectorScreen> {
                             MaterialPageRoute(
                               builder: (context) => const ARNavigationScreen(),
                             ),
-                          );
+                          ).then((_) {
+                            // Refresh shopping list when returning from AR navigation
+                            fetchShoppingList();
+                          });
                         },
                       icon: const Icon(Icons.arrow_forward),
                       label: const Text('Start Navigating'),

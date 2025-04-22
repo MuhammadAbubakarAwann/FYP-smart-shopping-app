@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/payment_service.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../services/user_service.dart';
+import '../services/shopping_list_service.dart';
 
 // Reuse the Product model from qr_code_scanner.dart
 class Product {
@@ -53,12 +56,7 @@ class Product {
 }
 
 class CartScreen extends StatefulWidget {
-  final int userId;
-
-  const CartScreen({
-    Key? key,
-    this.userId = 1, // Default user ID for testing
-  }) : super(key: key);
+  const CartScreen({Key? key}) : super(key: key);
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -72,17 +70,34 @@ class _CartScreenState extends State<CartScreen> {
   List<PaymentMethod> paymentMethods = [];
   PaymentMethod? selectedPaymentMethod;
   bool isOtpVerified = false;
+  late int userId; // Will be set from UserService
 
   @override
   void initState() {
     super.initState();
-    _loadCartItems();
-    _loadPaymentMethods();
+    
+    // Get the user ID from UserService
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userService = Provider.of<UserService>(context, listen: false);
+      if (userService.currentUser != null && 
+          userService.currentUser!.additionalData.containsKey('userId')) {
+        userId = userService.currentUser!.additionalData['userId'];
+        print('Using user ID: $userId from UserService');
+      } else {
+        // Fallback to default if not available
+        userId = 1;
+        print('UserService user ID not found, using default: $userId');
+      }
+      
+      // Now that we have the userId, load cart items and payment methods
+      _loadCartItems();
+      _loadPaymentMethods();
+    });
   }
 
   Future<void> _loadPaymentMethods() async {
     try {
-      final methods = await PaymentService.getPaymentMethods(widget.userId);
+      final methods = await PaymentService.getPaymentMethods(userId);
       setState(() {
         paymentMethods = methods;
         if (methods.isNotEmpty) {
@@ -124,7 +139,7 @@ class _CartScreenState extends State<CartScreen> {
   Future<void> _loadCartFromLocalStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cartData = prefs.getString('cart_items');
+      final cartData = prefs.getString('cart_items_$userId'); // Use user-specific key
 
       if (cartData != null) {
         final List<dynamic> decodedData = json.decode(cartData);
@@ -132,7 +147,7 @@ class _CartScreenState extends State<CartScreen> {
           cartItems =
               decodedData.map((item) => Product.fromJson(item)).toList();
         });
-        print('Loaded ${cartItems.length} items from local storage');
+        print('Loaded ${cartItems.length} items from local storage for user $userId');
       }
     } catch (e) {
       print('Error loading from local storage: $e');
@@ -144,7 +159,7 @@ class _CartScreenState extends State<CartScreen> {
     try {
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.get(
-        Uri.parse('$apiUrl/api/cart/${widget.userId}'),
+        Uri.parse('$apiUrl/api/cart/$userId'),
       );
 
       if (response.statusCode == 200) {
@@ -171,7 +186,7 @@ class _CartScreenState extends State<CartScreen> {
           // Save to local storage for offline access
           _saveCartToLocalStorage();
 
-          print('Loaded ${cartItems.length} items from server');
+          print('Loaded ${cartItems.length} items from server for user $userId');
         }
       } else {
         print('Server error: ${response.statusCode}');
@@ -199,8 +214,8 @@ class _CartScreenState extends State<CartScreen> {
       final prefs = await SharedPreferences.getInstance();
       final cartData =
           json.encode(cartItems.map((item) => item.toJson()).toList());
-      await prefs.setString('cart_items', cartData);
-      print('Saved cart to local storage');
+      await prefs.setString('cart_items_$userId', cartData); // Use user-specific key
+      print('Saved cart to local storage for user $userId');
     } catch (e) {
       print('Error saving to local storage: $e');
     }
@@ -216,7 +231,7 @@ class _CartScreenState extends State<CartScreen> {
     try {
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.put(
-        Uri.parse('$apiUrl/api/cart/${widget.userId}/item/${product.id}'),
+        Uri.parse('$apiUrl/api/cart/$userId/item/${product.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'quantity': newQuantity,
@@ -224,7 +239,7 @@ class _CartScreenState extends State<CartScreen> {
       );
 
       if (response.statusCode == 200) {
-        print('Updated quantity on server');
+        print('Updated quantity on server for user $userId');
         // Update local storage
         _saveCartToLocalStorage();
       } else {
@@ -260,11 +275,11 @@ class _CartScreenState extends State<CartScreen> {
     try {
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.delete(
-        Uri.parse('$apiUrl/api/cart/${widget.userId}/item/${product.id}'),
+        Uri.parse('$apiUrl/api/cart/$userId/item/${product.id}'),
       );
 
       if (response.statusCode == 200) {
-        print('Removed item from server');
+        print('Removed item from server for user $userId');
       } else {
         print('Failed to remove item from server: ${response.statusCode}');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -364,7 +379,7 @@ class _CartScreenState extends State<CartScreen> {
     });
 
     try {
-      final result = await PaymentService.requestOtp(widget.userId);
+      final result = await PaymentService.requestOtp(userId);
 
       setState(() {
         isProcessingPayment = false;
@@ -466,7 +481,7 @@ class _CartScreenState extends State<CartScreen> {
 
               try {
                 final result =
-                    await PaymentService.verifyOtp(widget.userId, otp);
+                    await PaymentService.verifyOtp(userId, otp);
 
                 if (result['success'] == true) {
                   // OTP verified successfully
@@ -987,7 +1002,7 @@ class _CartScreenState extends State<CartScreen> {
       // Process the checkout on the server
       final apiUrl = PaymentService.apiBaseUrl;
       final response = await http.post(
-        Uri.parse('$apiUrl/api/shopping-list/${widget.userId}/checkout'),
+        Uri.parse('$apiUrl/api/shopping-list/$userId/checkout'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'paymentMethodId': selectedPaymentMethod?.id,
@@ -1014,6 +1029,9 @@ class _CartScreenState extends State<CartScreen> {
 
         // Clear local storage
         _saveCartToLocalStorage();
+        
+        // Clear shopping list from local storage
+        await ShoppingListService.clearShoppingList();
       } else {
         // Show error dialog
         await _showPaymentErrorDialog(

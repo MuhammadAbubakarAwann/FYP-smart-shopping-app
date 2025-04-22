@@ -1,16 +1,42 @@
-import "package:flutter/material.dart";
-import "qr_code_scanner.dart"; // Import QR scanner
-import "cart_screen.dart";
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens/cart_screen.dart';
+import '../services/shopping_list_service.dart';
+import '../components/items_overlay.dart';
+import 'qr_code_scanner.dart';
 
 class ARNavigationScreen extends StatefulWidget {
   const ARNavigationScreen({Key? key}) : super(key: key);
 
   @override
-  State<ARNavigationScreen> createState() => _ARNavigationScreenState();
+  _ARNavigationScreenState createState() => _ARNavigationScreenState();
 }
 
 class _ARNavigationScreenState extends State<ARNavigationScreen> {
+  List<Map<String, dynamic>> shoppingList = [];
+  bool showMap = false;
+  bool isLoading = true;
   bool isBlueBackground = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchShoppingList();
+  }
+
+  Future<void> fetchShoppingList() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final list = await ShoppingListService.getShoppingList();
+
+    if (mounted) {
+      setState(() {
+        shoppingList = list;
+        isLoading = false;
+      });
+    }
+  }
 
   void toggleBackground() {
     setState(() {
@@ -24,22 +50,75 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
       context: context,
       builder: (context) => QRScannerPopup(
         onProductScanned: (product) {
-          // Handle the scanned product
+          // Create the item data
+          final newItem = {
+            "id": product.id.toString(),
+            "name": product.name,
+            "quantity": 1,
+            "inCart": true // Set to true by default when scanned
+          };
+
+          // First update the UI immediately
+          setState(() {
+            // Check if item already exists in the list
+            final existingIndex =
+                shoppingList.indexWhere((item) => item['id'] == newItem['id']);
+            if (existingIndex >= 0) {
+              // Update existing item
+              shoppingList[existingIndex]['quantity'] =
+                  (shoppingList[existingIndex]['quantity'] as int) +
+                      (newItem['quantity'] as int);
+              shoppingList[existingIndex]['inCart'] = newItem['inCart'];
+            } else {
+              // Add new item
+              shoppingList.add(newItem);
+            }
+          });
+
+          // Then update storage
+          ShoppingListService.updateStatus(newItem);
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Product scanned: ${product.name}'),
               backgroundColor: Colors.green,
             ),
           );
-
-          // Log the product details
-          print("Product details:");
-          print("ID: ${product.id}");
-          print("Name: ${product.name}");
-          print("Price: ${product.price.toStringAsFixed(2)}");
         },
       ),
     );
+  }
+
+  // Show items overlay
+  void _showItemsOverlay(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ItemsOverlay(
+        onItemAdded: (Map<String, dynamic> newItem) {
+          // Immediately update the UI with the new item
+          setState(() {
+            // Check if item already exists in the list
+            final existingIndex =
+                shoppingList.indexWhere((item) => item['id'] == newItem['id']);
+            if (existingIndex >= 0) {
+              // Update existing item
+              shoppingList[existingIndex]['quantity'] =
+                  (shoppingList[existingIndex]['quantity'] as int) +
+                      (newItem['quantity'] as int);
+              shoppingList[existingIndex]['inCart'] = newItem['inCart'];
+            } else {
+              // Add new item
+              shoppingList.add(newItem);
+            }
+          });
+        },
+      ),
+      isScrollControlled: true,
+    );
+
+    // Refresh the list after overlay is closed to ensure everything is in sync
+    fetchShoppingList();
   }
 
   @override
@@ -142,7 +221,10 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
                             context,
                             MaterialPageRoute(
                                 builder: (context) => CartScreen()),
-                          );
+                          ).then((_) {
+                            // This runs when you pop back from CartScreen
+                            fetchShoppingList();
+                          });
                         },
                         child: Container(
                           width: 40,
@@ -353,12 +435,12 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
                   children: [
                     // Item count
                     Row(
-                      children: const [
-                        Icon(Icons.list, color: Colors.grey, size: 20),
-                        SizedBox(width: 8),
+                      children: [
+                        const Icon(Icons.list, color: Colors.grey, size: 20),
+                        const SizedBox(width: 8),
                         Text(
-                          '1 of 10 item left',
-                          style: TextStyle(
+                          '${shoppingList.length} ${shoppingList.length == 1 ? 'item' : 'items'} in list',
+                          style: const TextStyle(
                               color: Color.fromRGBO(158, 158, 158, 1)),
                         ),
                       ],
@@ -368,9 +450,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
 
                     // Add More button (using the provided styling)
                     TextButton(
-                      onPressed: () {
-                        // Add more functionality
-                      },
+                      onPressed: () => _showItemsOverlay(context),
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         padding: EdgeInsets.zero,

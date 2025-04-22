@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+import '../services/user_service.dart';
+import '../services/shopping_list_service.dart';
 
 // Define a Product model to match your backend structure
 class Product {
@@ -67,7 +70,7 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
   bool isErrorCooldown = false;
   DateTime? lastErrorTime;
   bool isProcessing = false;
-  final int userId = 1; // Replace with actual user ID from authentication
+  late int userId; // Will be set from UserService
   
   // Animation controller for scanner animation
   late AnimationController _animationController;
@@ -89,6 +92,20 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
     );
     
     _animationController.repeat(reverse: true);
+    
+    // Get the user ID from UserService
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userService = Provider.of<UserService>(context, listen: false);
+      if (userService.currentUser != null && 
+          userService.currentUser!.additionalData.containsKey('userId')) {
+        userId = userService.currentUser!.additionalData['userId'];
+        print('Using user ID: $userId from UserService');
+      } else {
+        // Fallback to default if not available
+        userId = 1;
+        print('UserService user ID not found, using default: $userId');
+      }
+    });
   }
   
   @override
@@ -165,6 +182,17 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
         // Log the product details
         print('Product added to cart: ${product.toJson()}');
         
+        // Add to shopping list with inCart=true
+        final newItem = {
+          "id": product.id.toString(),
+          "name": product.name,
+          "quantity": 0,
+          "inCart": true  // Set to true by default when scanned
+        };
+        
+        
+        await ShoppingListService.updateStatus(newItem);
+        
         // Show success message and close after delay
         Future.delayed(const Duration(seconds: 1), () {
           widget.onProductScanned(product!);
@@ -194,8 +222,8 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
         Uri.parse('$apiUrl/api/items/qr/$qrCode'),
       );
 
-      print("Responseeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee status: ${response.statusCode}");
-      print("Responseeeeeeeeeeeeeeeeeeeeeeee body: ${response.body}");
+      print("Response status: ${response.statusCode}");
+      print("Response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -211,7 +239,7 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
   Future<bool> _addToCart(Product product) async {
     try {
       final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.18.35:5000';
-      print("product id:::::::::::::::: ${product.id}");
+      print("Adding product ID ${product.id} to cart for user ID: $userId");
      
       final response = await http.post(
         Uri.parse('$apiUrl/api/shopping-list/$userId'),
@@ -437,15 +465,15 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
                             children: [
                               Icon(
                                 Icons.check_circle,
-                                color: Colors.green,
-                                size: 80,
+                                color: Color(0xFF4CAF50), // More vibrant green
+                                size: 100, // Larger icon
                               ),
                               SizedBox(height: 16),
                               Text(
                                 "Added to Cart!",
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
+                                  fontSize: 18, // Slightly larger text
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
