@@ -4,8 +4,14 @@ import 'package:http/http.dart' as http;
 import '../services/config_service.dart';
 import '../services/shopping_list_service.dart';
 
+// Update the ItemsOverlay class to include a callback for when an item is added
 class ItemsOverlay extends StatefulWidget {
-  const ItemsOverlay({super.key});
+  final Function(Map<String, dynamic>)? onItemAdded;
+  
+  const ItemsOverlay({
+    super.key,
+    this.onItemAdded,
+  });
 
   @override
   _ItemsOverlayState createState() => _ItemsOverlayState();
@@ -16,6 +22,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
   List<Map<String, String>> searchResults = []; // Search results list
   bool showRecentItemsOverlay = false;
   TextEditingController searchController = TextEditingController();
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -24,6 +31,10 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
   }
 
   Future<void> fetchRecentItems() async {
+    setState(() {
+      isLoading = true;
+    });
+    
     try {
       final response = await http.get(Uri.parse('${configService.apiBaseUrl}/api/items'));
 
@@ -37,6 +48,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
             };
           }).toList();
           searchResults = recentItems;
+          isLoading = false;
         });
       }
     } catch (e) {
@@ -55,14 +67,20 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
           {"id": "9", "name": "Sugar"},
         ];
         searchResults = recentItems;
+        isLoading = false;
       });
     }
   }
 
   Future<void> searchItems(String query) async {
+    setState(() {
+      isLoading = true;
+    });
+    
     if (query.isEmpty) {
       setState(() {
         searchResults = recentItems;
+        isLoading = false;
       });
       return;
     }
@@ -80,6 +98,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
               "name": item["name"].toString(),
             };
           }).toList();
+          isLoading = false;
         });
       }
     } catch (e) {
@@ -89,6 +108,7 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
         searchResults = recentItems.where((item) {
           return item["name"]!.toLowerCase().contains(query.toLowerCase());
         }).toList();
+        isLoading = false;
       });
     }
   }
@@ -171,88 +191,90 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(30)),
                   ),
-                  child: ListView(
-                    children: [
-                      _buildCategorySection('Top up', [
-                        _ItemCard(
-                          icon: '🍎', 
-                          label: 'Fruits',
-                          onTap: () => _addItemToShoppingList("6", "Apple"),
-                        ),
-                        _ItemCard(
-                          icon: '🏠', 
-                          label: 'Sugar',
-                          onTap: () => _addItemToShoppingList("9", "Sugar"),
-                        ),
-                        _ItemCard(
-                          icon: '🥗', 
-                          label: 'Salad',
-                          onTap: () => _addItemToShoppingList("8", "Salad"),
-                        ),
-                      ]),
-                      const SizedBox(height: 20),
-                      _buildCategorySection('Bread and dairy', [
-                        _ItemCard(
-                          icon: '🥛', 
-                          label: 'Milk',
-                          onTap: () => _addItemToShoppingList("1", "Semi skimmed Milk"),
-                        ),
-                        _ItemCard(
-                          icon: '🍞', 
-                          label: 'Bread',
-                          onTap: () => _addItemToShoppingList("7", "Bread"),
-                        ),
-                        _ItemCard(
-                          icon: '🧀', 
-                          label: 'Cheese',
-                          onTap: () => _addItemToShoppingList("5", "Cheese"),
-                        ),
-                      ]),
-                      const SizedBox(height: 45),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 16, bottom: 16),
-                        child: Align(
-                          alignment: Alignment.bottomRight,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            style: TextButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              padding: EdgeInsets.zero,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF8BE0FF),
-                                    borderRadius: BorderRadius.circular(6),
+                  child: isLoading 
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF0CA8E1)))
+                    : ListView(
+                      children: [
+                        _buildCategorySection('Top up', [
+                          _ItemCard(
+                            icon: '🍎', 
+                            label: 'Fruits',
+                            onTap: () => _addItemToShoppingList("6", "Apple", true),
+                          ),
+                          _ItemCard(
+                            icon: '🏠', 
+                            label: 'Sugar',
+                            onTap: () => _addItemToShoppingList("9", "Sugar", true),
+                          ),
+                          _ItemCard(
+                            icon: '🥗', 
+                            label: 'Salad',
+                            onTap: () => _addItemToShoppingList("8", "Salad", true),
+                          ),
+                        ]),
+                        const SizedBox(height: 20),
+                        _buildCategorySection('Bread and dairy', [
+                          _ItemCard(
+                            icon: '🥛', 
+                            label: 'Milk',
+                            onTap: () => _addItemToShoppingList("1", "Semi skimmed Milk", true),
+                          ),
+                          _ItemCard(
+                            icon: '🍞', 
+                            label: 'Bread',
+                            onTap: () => _addItemToShoppingList("7", "Bread", true),
+                          ),
+                          _ItemCard(
+                            icon: '🧀', 
+                            label: 'Cheese',
+                            onTap: () => _addItemToShoppingList("5", "Cheese", true),
+                          ),
+                        ]),
+                        const SizedBox(height: 45),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 16, bottom: 16),
+                          child: Align(
+                            alignment: Alignment.bottomRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                              style: TextButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF8BE0FF),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    padding: const EdgeInsets.all(6),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 18,
+                                      weight: 900,
+                                    ),
                                   ),
-                                  padding: const EdgeInsets.all(6),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 18,
-                                    weight: 900,
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      color: Color(0xFF8BE0FF),
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    color: Color(0xFF8BE0FF),
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                 ),
               ),
             ],
@@ -270,19 +292,31 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
                 // Refresh the parent screen when an item is added
                 Navigator.pop(context);
               },
+              onItemAddedWithData: widget.onItemAdded,
+              isLoading: isLoading,
             ),
           ),
       ],
     );
   }
 
-  Future<void> _addItemToShoppingList(String itemId, String itemName) async {
-    // Add to local storage shopping list
-    await ShoppingListService.addItem({
+  // Update the _addItemToShoppingList method in _ItemsOverlayState
+  Future<void> _addItemToShoppingList(String itemId, String itemName, bool inCart) async {
+    // Create the item data
+    final newItem = {
       "id": itemId,
       "name": itemName,
-      "quantity": 1
-    });
+      "quantity": 1,
+      "inCart": inCart
+    };
+    
+    // Add to local storage shopping list
+    await ShoppingListService.addItem(newItem);
+    
+    // Notify parent component about the new item
+    if (widget.onItemAdded != null) {
+      widget.onItemAdded!(newItem);
+    }
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -322,15 +356,20 @@ class _ItemsOverlayState extends State<ItemsOverlay> {
   }
 }
 
+// Update the _RecentItemsOverlay class to include a callback for when an item is added
 class _RecentItemsOverlay extends StatelessWidget {
   final List<Map<String, String>> items;
   final VoidCallback onClose;
   final VoidCallback onItemAdded;
+  final Function(Map<String, dynamic>)? onItemAddedWithData;
+  final bool isLoading;
 
   const _RecentItemsOverlay({
     required this.items, 
     required this.onClose,
     required this.onItemAdded,
+    this.onItemAddedWithData,
+    this.isLoading = false,
   });
 
   @override
@@ -354,7 +393,9 @@ class _RecentItemsOverlay extends StatelessWidget {
               ],
             ),
             Expanded(
-              child: items.isEmpty
+              child: isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF0CA8E1)))
+                : items.isEmpty
                   ? const Center(
                       child: Text("No items found"),
                     )
@@ -362,18 +403,16 @@ class _RecentItemsOverlay extends StatelessWidget {
                       itemCount: items.length,
                       itemBuilder: (context, index) {
                         return ListTile(
-                          leading:
-                              const Icon(Icons.shopping_cart), // Placeholder icon
+                          leading: const Icon(Icons.shopping_cart),
                           title: Text(items[index]['name'] ?? 'Unknown Item'),
                           trailing: IconButton(
-                            icon: const Icon(Icons.add_circle,
-                                color: Color(0xFF0CA8E1)),
+                            icon: const Icon(Icons.add_circle, color: Color(0xFF0CA8E1)),
                             onPressed: () {
                               addItemToShoppingList(
                                 items[index]['id']!,
                                 items[index]['name']!,
+                                false, // Set inCart to true by default
                               );
-                              onItemAdded();
                             },
                           ),
                         );
@@ -386,15 +425,26 @@ class _RecentItemsOverlay extends StatelessWidget {
     );
   }
 
-  Future<void> addItemToShoppingList(String itemId, String itemName) async {
-    // Add to local storage shopping list
-    await ShoppingListService.addItem({
+  // Update the addItemToShoppingList method in _RecentItemsOverlay
+  Future<void> addItemToShoppingList(String itemId, String itemName, bool inCart) async {
+    // Create the item data
+    final newItem = {
       "id": itemId,
       "name": itemName,
-      "quantity": 1
-    });
+      "quantity": 1,
+      "inCart": inCart
+    };
+    
+    // Add to local storage shopping list
+    await ShoppingListService.addItem(newItem);
+    
+    // Notify parent component about the new item
+    if (onItemAddedWithData != null) {
+      onItemAddedWithData!(newItem);
+    }
     
     print("Item added locally: $itemName");
+    onItemAdded();
   }
 }
 
@@ -453,4 +503,3 @@ class _ItemCard extends StatelessWidget {
     );
   }
 }
-

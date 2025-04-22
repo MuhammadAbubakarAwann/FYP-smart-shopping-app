@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class StripeService {
-  static String get apiBaseUrl => dotenv.env['API_URL'] ?? 'http://192.168.100.5:5000';
+  static String get apiBaseUrl => dotenv.env['API_URL'] ?? 'http://192.168.18.35:5000';
   static String get publishableKey => dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
 
   // Create a SetupIntent on the server

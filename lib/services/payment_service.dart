@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'shopping_list_service.dart';
 
 class PaymentMethod {
   final int id;
@@ -33,7 +34,7 @@ class PaymentMethod {
 }
 
 class PaymentService {
-  static const String apiBaseUrl = 'http://192.168.100.5:5000';
+  static const String apiBaseUrl = 'http://192.168.18.35:5000';
   static String? get stripePublishableKey =>
       dotenv.env['STRIPE_PUBLISHABLE_KEY'];
 
@@ -175,7 +176,6 @@ class PaymentService {
   }
 
   // Request OTP for payment verification
-// Fixed requestOtp method
   static Future<Map<String, dynamic>> requestOtp(int userId) async {
     try {
       final response = await http.post(
@@ -248,7 +248,14 @@ class PaymentService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final result = jsonDecode(response.body);
+        
+        // If payment was successful, clear the shopping list
+        if (result['success'] == true) {
+          await ShoppingListService.clearShoppingList();
+        }
+        
+        return result;
       } else {
         final errorData = jsonDecode(response.body);
         return {

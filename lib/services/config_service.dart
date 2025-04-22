@@ -10,7 +10,7 @@ class ConfigService {
   String? _apiBaseUrl;
 
   // Getters for configuration values
-  String get apiBaseUrl => _apiBaseUrl ??= dotenv.env['API_BASE_URL'] ?? 'http://192.168.100.5:5000';
+  String get apiBaseUrl => _apiBaseUrl ??= dotenv.env['API_BASE_URL'] ?? 'http://192.168.18.35:5000';
 
 }
 
