@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'items_selector_screen.dart';
+import 'shopping_list_screen.dart';
 import 'ar_navigation_screen.dart';
 
 class ShoppingListWelcomeScreen extends StatelessWidget {
