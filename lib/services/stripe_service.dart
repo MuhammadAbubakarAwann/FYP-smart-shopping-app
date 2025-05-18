@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class StripeService {
   static String get apiBaseUrl =>
-      dotenv.env['API_URL'] ?? 'http://192.168.18.35:5000';
+      dotenv.env['API_URL'] ?? 'http://192.168.100.6:5000';
   static String get publishableKey =>
       dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
 

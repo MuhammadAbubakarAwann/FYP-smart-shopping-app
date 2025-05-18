@@ -215,7 +215,7 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
   
   Future<Product?> _fetchProductByQRCode(String qrCode) async {
     try {
-      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.18.35:5000';
+      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.100.6:5000';
       print("Fetching product from: $apiUrl/api/items/qr/$qrCode");
       
       final response = await http.get(
@@ -238,7 +238,7 @@ class _QRScannerPopupState extends State<QRScannerPopup> with SingleTickerProvid
 
   Future<bool> _addToCart(Product product) async {
     try {
-      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.18.35:5000';
+      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.100.6:5000';
       print("Adding product ID ${product.id} to cart for user ID: $userId");
      
       final response = await http.post(

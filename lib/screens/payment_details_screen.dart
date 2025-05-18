@@ -274,7 +274,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             _buildPaymentOption(
               value: 'easypaisa',
               iconAsset: 'assets/easypaisa.png', // You'll need this asset
-              label: 'Easy Paisa',
+              label: '',
               iconFallback: Icons.account_balance_wallet,
               iconColor: Colors.green,
             ),

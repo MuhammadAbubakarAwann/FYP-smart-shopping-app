@@ -256,7 +256,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen> {
                 child: Center(
                   child: isBlueBackground
                       ? Image.asset(
-                          'assets/images/store_map.png',
+                          'assets/store_map.png',
                           fit: BoxFit.contain,
                         )
                       : const Center(

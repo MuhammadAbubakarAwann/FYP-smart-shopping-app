@@ -33,7 +33,7 @@ class PaymentMethod {
 }
 
 class PaymentService {
-  static const String apiBaseUrl = 'http://192.168.18.35:5000';
+  static const String apiBaseUrl = 'http://192.168.100.6:5000';
   static String? get stripePublishableKey =>
       dotenv.env['STRIPE_PUBLISHABLE_KEY'];
 

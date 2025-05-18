@@ -5,7 +5,7 @@ import '../services/user_service.dart';
 
 class UserSyncService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final String apiBaseUrl = 'http://192.168.18.35:5000'; 
+  final String apiBaseUrl = 'http://192.168.100.6:5000'; 
   final UserService _userService = UserService(); 
 
   // Sync Firebase user with backend database
